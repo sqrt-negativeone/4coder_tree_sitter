@@ -1,0 +1,45 @@
+version(2);
+project_name = "4ed custom";
+
+indent_with_tabs = true;
+indent_width = "2";
+default_tab_width = "2";
+automatically_indent_text_on_save = true;
+
+format_with_clang = false;
+
+patterns = {
+	"*.c", "*.cpp", "*.glsl", "*.hlsl",   "*.h",
+	"*.m", "*.bat", "*.sh",   "*.4coder",
+};
+
+blacklist_patterns = {
+	".*",
+};
+load_paths_base = {
+	{
+		.path = ".",
+		.relative = true,
+		.recursive = true,
+	},
+};
+load_paths = {
+	.win = load_paths_base,
+	.linux = load_paths_base,
+	.mac = load_paths_base,
+};
+
+commands = {
+	.build =
+	{
+		.out = "*compilation*",
+		.footer_panel = true,
+		.save_dirty_files = true,
+		.linux = "./build.sh",
+		.win = "build.bat",
+	},
+};
+
+fkey_command = {
+	.F1 = "build",
+};
