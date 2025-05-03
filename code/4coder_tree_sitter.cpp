@@ -7,31 +7,27 @@
 
 CUSTOM_ID(attachment, ts_data_id);
 
-CUSTOM_ID(colors, fleury_color_syntax_crap);
-CUSTOM_ID(colors, fleury_color_operators);
-CUSTOM_ID(colors, fleury_color_inactive_pane_overlay);
-CUSTOM_ID(colors, fleury_color_inactive_pane_background);
-CUSTOM_ID(colors, fleury_color_file_progress_bar);
-CUSTOM_ID(colors, fleury_color_brace_highlight);
-CUSTOM_ID(colors, fleury_color_brace_line);
-CUSTOM_ID(colors, fleury_color_brace_annotation);
-CUSTOM_ID(colors, fleury_color_index_sum_type);
-CUSTOM_ID(colors, fleury_color_index_product_type);
-CUSTOM_ID(colors, fleury_color_index_function);
-CUSTOM_ID(colors, fleury_color_index_macro);
-CUSTOM_ID(colors, fleury_color_index_constant);
-CUSTOM_ID(colors, fleury_color_index_comment_tag);
-CUSTOM_ID(colors, fleury_color_index_decl);
-CUSTOM_ID(colors, fleury_color_cursor_macro);
-CUSTOM_ID(colors, fleury_color_cursor_power_mode);
-CUSTOM_ID(colors, fleury_color_cursor_inactive);
-CUSTOM_ID(colors, fleury_color_plot_cycle);
-CUSTOM_ID(colors, fleury_color_token_highlight);
-CUSTOM_ID(colors, fleury_color_token_minor_highlight);
-CUSTOM_ID(colors, fleury_color_comment_user_name);
-CUSTOM_ID(colors, fleury_color_lego_grab);
-CUSTOM_ID(colors, fleury_color_lego_splat);
-CUSTOM_ID(colors, fleury_color_error_annotation);
+
+CUSTOM_ID(colors, ts_color_attributes);
+CUSTOM_ID(colors, ts_color_namespace);
+CUSTOM_ID(colors, ts_color_label);
+CUSTOM_ID(colors, ts_color_operator);
+CUSTOM_ID(colors, ts_color_syntax_crap);
+CUSTOM_ID(colors, ts_color_sum_type);
+CUSTOM_ID(colors, ts_color_prod_type);
+CUSTOM_ID(colors, ts_color_macro);
+CUSTOM_ID(colors, ts_color_constant);
+CUSTOM_ID(colors, ts_color_comment_tag);
+CUSTOM_ID(colors, ts_color_global_decl);
+CUSTOM_ID(colors, ts_color_token_highlight);
+CUSTOM_ID(colors, ts_color_token_minor_highlight);
+CUSTOM_ID(colors, ts_color_error_annotation);
+CUSTOM_ID(colors, ts_color_comment_user_name);
+CUSTOM_ID(colors, ts_color_builtin_func);
+CUSTOM_ID(colors, ts_color_decorator);
+CUSTOM_ID(colors, ts_color_builtin_type);
+CUSTOM_ID(colors, ts_color_interface_type);
+CUSTOM_ID(colors, ts_color_constructor);
 
 CUSTOM_ID(colors, defcolor_function);
 CUSTOM_ID(colors, defcolor_type);
@@ -383,7 +379,7 @@ tree_sitter_draw_text_highlight_colors(Application_Links *app, Text_Layout_ID te
 			TS_Index_Note *note = ts_code_index_note_from_string(lexeme);
 			if (note != 0)
 			{
-				Managed_ID color_id = ts_code_index_color_from_note(app, &g_index_ctx, note);
+				Managed_ID color_id = ts_code_index_color_from_note(app, language, note);
 				if (color_id)
 					paint_text_color_fcolor(app, text_layout_id, node_range, fcolor_id(color_id));
 			}
@@ -641,6 +637,8 @@ BUFFER_HOOK_SIG(ts_end_buffer){
 	ts_code_index_lock();
 	ts_clear_index_file(ts_data);
 	ts_code_index_unlock();
+	
+	ts_parser_delete(ts_data->parser);
 	
 	return(0);
 }

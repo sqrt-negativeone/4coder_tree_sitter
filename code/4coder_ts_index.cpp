@@ -1,15 +1,5 @@
 
-
-enum TS_Index_Note_Kind
-{
-	Index_Note_None,
-	Index_Note_Macro,
-	Index_Note_Function,
-	Index_Note_Product_Type,
-	Index_Note_Sum_Type,
-	Index_Note_Enum_Const,
-	
-};
+typedef u32 TS_Index_Note_Kind;
 
 struct TS_Index_Note
 {
@@ -42,6 +32,10 @@ struct TS_Language
 	const TSLanguage *language;
 	TSQuery *highlight_query;
 	TSQuery *index_query;
+	
+	// TODO(fakhri): note_kind_to_color_id can just be an array, and then we index with note kind
+	Table_u64_u64   note_kind_to_color_id;
+	Table_Data_u64  name_to_note_kind_table;
 };
 
 struct TS_Data
@@ -61,15 +55,18 @@ struct TS_Index_Context
 	TS_Index_Note *free_notes;
 	TS_Index_Note_List name_to_note_table[4096];
 	
-	Table_u64_u64   note_kind_to_color_id;
-	Table_Data_u64  name_to_note_kind_table;
 	Table_Data_Data ext_to_language_table;
-	
 };
 
 global TS_Index_Context g_index_ctx;
 
 #include "4coder_ts_langs_c.cpp"
+#include "4coder_ts_langs_cpp.cpp"
+#include "4coder_ts_langs_odin.cpp"
+#include "4coder_ts_langs_python.cpp"
+#include "4coder_ts_langs_java.cpp"
+#include "4coder_ts_langs_c_sharp.cpp"
+#include "4coder_ts_langs_go.cpp"
 
 function void
 ts_code_index_lock(void){
@@ -137,27 +134,16 @@ ts_code_index_init(Application_Links *app)
 	ts_index->arena = make_arena_system(KB(512));
 	ts_index->mutex = system_mutex_make();
 	
-	ts_index->name_to_note_kind_table = make_table_Data_u64(ts_index->arena.base_allocator, 32);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("macro_def"),        Index_Note_Macro);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("function_def"),     Index_Note_Function);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("typedef.type"),     Index_Note_Product_Type);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("typedef.function"), Index_Note_Product_Type);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("typedef.struct"),   Index_Note_Product_Type);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("typedef.enum"),     Index_Note_Product_Type);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("typedef.union"),    Index_Note_Sum_Type);
-	table_insert(&ts_index->name_to_note_kind_table, str8_lit("enum.const"),       Index_Note_Enum_Const);
-	
-	ts_index->note_kind_to_color_id = make_table_u64_u64(ts_index->arena.base_allocator, 32);
-	table_insert(&ts_index->note_kind_to_color_id, Index_Note_Function, managed_id_get(app, SCu8("colors"), str8_lit("defcolor_function")));
-	table_insert(&ts_index->note_kind_to_color_id, Index_Note_Product_Type, managed_id_get(app, SCu8("colors"), str8_lit("fleury_color_index_product_type")));
-	table_insert(&ts_index->note_kind_to_color_id, Index_Note_Sum_Type, managed_id_get(app, SCu8("colors"), str8_lit("fleury_color_index_sum_type")));
-	table_insert(&ts_index->note_kind_to_color_id, Index_Note_Enum_Const, managed_id_get(app, SCu8("colors"), str8_lit("fleury_color_index_constant")));
-	table_insert(&ts_index->note_kind_to_color_id, Index_Note_Macro, managed_id_get(app, SCu8("colors"), str8_lit("fleury_color_index_macro")));
 	
 	ts_index->ext_to_language_table = make_table_Data_Data(ts_index->arena.base_allocator, 32);
 	
-	// NOTE(fakhri): C
 	ts_init_c_language(app, ts_index);
+	ts_init_cpp_language(app, ts_index);
+	ts_init_python_language(app, ts_index);
+	ts_init_java_language(app, ts_index);
+	ts_init_csharp_language(app, ts_index);
+	ts_init_go_language(app, ts_index);
+	// ts_init_odin_language(app, ts_index);
 }
 
 function TS_Index_Note *
@@ -181,18 +167,18 @@ ts_code_index_note_from_string(String_Const_u8 string)
 }
 
 function TS_Index_Note_Kind 
-ts_node_kind_from_string(TS_Index_Context *ts_index, String_Const_u8 capture_name)
+ts_node_kind_from_string(TS_Language *lang, String_Const_u8 capture_name)
 {
-	TS_Index_Note_Kind note_kind = Index_Note_None;
-	table_read(&ts_index->name_to_note_kind_table, capture_name, (u64*)&note_kind);
+	TS_Index_Note_Kind note_kind = 0;
+	table_read(&lang->name_to_note_kind_table, capture_name, (u64*)&note_kind);
 	return note_kind;
 }
 
 function Managed_ID
-ts_code_index_color_from_note(Application_Links *app, TS_Index_Context *ts_index, TS_Index_Note *note)
+ts_code_index_color_from_note(Application_Links *app, TS_Language *lang, TS_Index_Note *note)
 {
 	Managed_ID color_id = 0;
-	table_read(&ts_index->note_kind_to_color_id, note->kind, &color_id);
+	table_read(&lang->note_kind_to_color_id, note->kind, &color_id);
 	return color_id;
 }
 
@@ -268,8 +254,9 @@ ts_code_index_update_tick(Application_Links *app)
 			ProfileBlock(app, "TreeSitter Indexing");
 			TSNode root = ts_tree_root_node(ts_data->tree);
 			
-			// NOTE(fakhri): limit the search to only 4 levels deep the syntax tree
-			ts_query_cursor_set_max_start_depth(index_cursor, 4);
+#if 0
+			ts_query_cursor_set_max_start_depth(index_cursor, 8);
+#endif
 			ts_query_cursor_exec(index_cursor, language->index_query, root);
 			
 			TSQueryMatch match = {};
@@ -284,7 +271,7 @@ ts_code_index_update_tick(Application_Links *app)
 				String_Const_u8 capture_name = SCu8((u8*)capture_name_str, capture_name_len);
 				
 				ts_make_index_note(file, buffer_id, 
-													 ts_node_kind_from_string(&g_index_ctx, capture_name),
+													 ts_node_kind_from_string(language, capture_name),
 													 node_range, string_substring(contents, node_range));
 			}
 			

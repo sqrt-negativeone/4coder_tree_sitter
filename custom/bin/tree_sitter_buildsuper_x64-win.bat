@@ -61,6 +61,6 @@ REM file spammation preventation
 del metadata_generator*
 del *.exp
 del *.obj
-del *.lib
+:: del *.lib
 del %preproc_file%
 

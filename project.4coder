@@ -17,11 +17,8 @@ blacklist_patterns = {
 	".*",
 };
 load_paths_base = {
-	{
-		.path = ".",
-		.relative = true,
-		.recursive = true,
-	},
+	{.path = "code",.relative = true,.recursive = true,},
+	{.path = "custom",.relative = true,.recursive = true,},
 };
 load_paths = {
 	.win = load_paths_base,
