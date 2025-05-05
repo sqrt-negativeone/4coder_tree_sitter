@@ -1,5 +1,5 @@
 
-typedef u32 TS_Index_Note_Kind;
+typedef u64 TS_Index_Note_Kind;
 
 struct TS_Index_Note
 {
@@ -170,7 +170,7 @@ function TS_Index_Note_Kind
 ts_node_kind_from_string(TS_Language *lang, String_Const_u8 capture_name)
 {
 	TS_Index_Note_Kind note_kind = 0;
-	table_read(&lang->name_to_note_kind_table, capture_name, (u64*)&note_kind);
+	table_read(&lang->name_to_note_kind_table, capture_name, &note_kind);
 	return note_kind;
 }
 
