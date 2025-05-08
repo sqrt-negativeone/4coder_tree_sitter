@@ -10,6 +10,8 @@ enum
 	Index_Note_CPP_Enum_Const,
 };
 
+
+
 external const TSLanguage *tree_sitter_cpp(void);
 
 // TODO(fakhri): load queries from disk
@@ -218,6 +220,45 @@ str8_lit
 
 global TS_Language cpp_language;
 
+function String_Const_u8
+ts_get_lister_note_kind_text_cpp(TS_Index_Note *note, Arena *arena)
+{
+	String_Const_u8 result = str8_lit("");
+	if (!note) return result;
+	
+	switch (note->kind)
+	{
+		case Index_Note_CPP_Macro:
+		{
+			result = str8_lit("macro");
+		} break;
+		case Index_Note_CPP_Function:
+		{
+			result = str8_lit("function");
+		} break;
+		case Index_Note_CPP_Product_Type:
+		{
+			result = str8_lit("type [product]");
+		} break;
+		case Index_Note_CPP_Sum_Type:
+		{
+			result = str8_lit("type [sum]");
+		} break;
+		case Index_Note_CPP_Enum_Const:
+		{
+			result = str8_lit("constant");
+		} break;
+		
+		case Index_Note_CPP_Namespace:
+		{
+			result = str8_lit("namespace");
+		} break;
+		
+	}
+	
+	return result;
+}
+
 function void
 ts_init_cpp_language(Application_Links *app, TS_Index_Context *ts_index)
 {
@@ -269,4 +310,5 @@ ts_init_cpp_language(Application_Links *app, TS_Index_Context *ts_index)
 	for (u32 i = 0; i < ArrayCount(extensions); i += 1)
 		table_insert(&ts_index->ext_to_language_table, extensions[i], make_data_struct(&cpp_language));
 	
+	cpp_language.get_lister_note_kind_text = ts_get_lister_note_kind_text_cpp;
 }

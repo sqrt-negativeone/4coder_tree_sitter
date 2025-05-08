@@ -176,6 +176,38 @@ str8_lit
 global TS_Language c_language;
 
 
+function String_Const_u8
+ts_get_lister_note_kind_text_c(TS_Index_Note *note, Arena *arena)
+{
+	String_Const_u8 result = str8_lit("");
+	if (!note) return result;
+	
+	switch (note->kind)
+	{
+		case Index_Note_C_Macro:
+		{
+			result = str8_lit("macro");
+		} break;
+		case Index_Note_C_Function:
+		{
+			result = str8_lit("function");
+		} break;
+		case Index_Note_C_Product_Type:
+		{
+			result = str8_lit("type [product]");
+		} break;
+		case Index_Note_C_Sum_Type:
+		{
+			result = str8_lit("type [sum]");
+		} break;
+		case Index_Note_C_Enum_Const:
+		{
+			result = str8_lit("constant");
+		} break;
+	}
+	
+	return result;
+}
 
 function void
 ts_init_c_language(Application_Links *app, TS_Index_Context *ts_index)
@@ -197,7 +229,6 @@ ts_init_c_language(Application_Links *app, TS_Index_Context *ts_index)
 	{
 		print_message(app, str8_lit("couldn't create highlight query"));
 	}
-	
 	
 	c_language.name_to_note_kind_table = make_table_Data_u64(ts_index->arena.base_allocator, 32);
 	table_insert(&c_language.name_to_note_kind_table, str8_lit("macro_def"),        Index_Note_C_Macro);
@@ -223,4 +254,6 @@ ts_init_c_language(Application_Links *app, TS_Index_Context *ts_index)
 		for (u32 i = 0; i < ArrayCount(extensions); i += 1)
 			table_insert(&ts_index->ext_to_language_table, extensions[i], make_data_struct(&c_language));
 	}
+	
+	c_language.get_lister_note_kind_text = ts_get_lister_note_kind_text_c;
 }

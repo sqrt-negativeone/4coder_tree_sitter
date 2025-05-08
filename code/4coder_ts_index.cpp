@@ -27,6 +27,9 @@ struct TS_Index_File
 	TS_Index_Note_List notes;
 };
 
+
+typedef String_Const_u8 TS_Get_Lister_Note_Kind_Text_Proc(TS_Index_Note *note, Arena *arena);
+
 struct TS_Language
 {
 	const TSLanguage *language;
@@ -36,6 +39,8 @@ struct TS_Language
 	// TODO(fakhri): note_kind_to_color_id can just be an array, and then we index with note kind
 	Table_u64_u64   note_kind_to_color_id;
 	Table_Data_u64  name_to_note_kind_table;
+	
+	TS_Get_Lister_Note_Kind_Text_Proc *get_lister_note_kind_text;
 };
 
 struct TS_Data
@@ -286,6 +291,8 @@ ts_code_index_update_tick(Application_Links *app)
 	buffer_modified_set_clear();
 }
 
+
+
 function String_Const_u8
 ts_push_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
 	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
@@ -352,3 +359,131 @@ CUSTOM_DOC("Goes to the definition of the identifier under the cursor in the sam
 	TS_Index_Note *note = ts_code_index_note_from_string(string);
 	ts_goto_definition(app, note, 1);
 }
+
+internal void
+_ts_push_lister_option_for_note(Application_Links *app, Arena *arena, Lister *lister, TS_Language *language, TS_Index_Note *note)
+{
+	if(note)
+	{
+		Buffer_ID buffer = note->buffer_id;
+		Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+		TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+		TS_Language *language = ts_data->language;
+		
+		Tiny_Jump *jump = push_array(arena, Tiny_Jump, 1);
+		jump->buffer = buffer;
+		jump->pos = note->range.first;
+		
+		String_Const_u8 buffer_name = push_buffer_unique_name(app, arena, buffer);
+		String_Const_u8 name = push_stringf(arena, "[%.*s] %.*s", string_expand(buffer_name), string_expand(note->text));
+		String_Const_u8 sort = str8_lit("");
+		
+		if (language->get_lister_note_kind_text)
+		{
+			sort = language->get_lister_note_kind_text(note, arena);
+		}
+		
+		lister_add_item(lister, name, sort, jump, 0);
+	}
+}
+
+internal void
+ts_jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, i64 pos)
+{
+	// NOTE(rjf): This function was ripped from 4coder's jump_to_location. It was copied
+	// and modified so that jumping to a location didn't cause a selection in notepad-like
+	// mode.
+	
+	view_set_active(app, view);
+	Buffer_Seek seek = seek_pos(pos);
+	set_view_to_location(app, view, buffer, seek);
+	
+	if (auto_center_after_jumps)
+	{
+		center_view(app);
+	}
+	view_set_cursor(app, view, seek);
+	view_set_mark(app, view, seek);
+}
+
+function void
+_ts_list_definitions_in_buffer(Application_Links *app, Buffer_ID buffer, Arena *arena, Lister *lister)
+{
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	
+	TS_Index_File *file = ts_data->file;
+	if (file != 0)
+	{
+		for(TS_Index_Note *note = file->notes.first; note; note = note->next)
+		{
+			_ts_push_lister_option_for_note(app, arena, lister, ts_data->language, note);
+		}
+	}
+}
+
+CUSTOM_UI_COMMAND_SIG(ts_search_for_definition__project_wide)
+CUSTOM_DOC("List all definitions in the index and jump to the one selected by the user.")
+{
+	char *query = "Index (Project):";
+	
+	Scratch_Block scratch(app);
+	Lister_Block lister(app, scratch);
+	lister_set_query(lister, query);
+	lister_set_default_handlers(lister);
+	
+	ts_code_index_lock();
+	{
+		for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
+				 buffer != 0; buffer = get_buffer_next(app, buffer, Access_Always))
+		{
+			_ts_list_definitions_in_buffer(app, buffer, scratch, lister);
+		}
+	}
+	ts_code_index_unlock();
+	
+	Lister_Result l_result = run_lister(app, lister);
+	Tiny_Jump result = {};
+	if (!l_result.canceled && l_result.user_data != 0){
+		block_copy_struct(&result, (Tiny_Jump*)l_result.user_data);
+	}
+	
+	if (result.buffer != 0)
+	{
+		View_ID view = get_this_ctx_view(app, Access_Always);
+		point_stack_push_view_cursor(app, view);
+		ts_jump_to_location(app, view, result.buffer, result.pos);
+	}
+}
+
+CUSTOM_UI_COMMAND_SIG(ts_search_for_definition__current_file)
+CUSTOM_DOC("List all definitions in the current file and jump to the one selected by the user.")
+{
+	char *query = "Index (File):";
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	
+	Scratch_Block scratch(app);
+	Lister_Block lister(app, scratch);
+	lister_set_query(lister, query);
+	lister_set_default_handlers(lister);
+	
+	ts_code_index_lock();
+	_ts_list_definitions_in_buffer(app, buffer, scratch, lister);
+	ts_code_index_unlock();
+	
+	Lister_Result l_result = run_lister(app, lister);
+	Tiny_Jump result = {};
+	if (!l_result.canceled && l_result.user_data != 0){
+		block_copy_struct(&result, (Tiny_Jump*)l_result.user_data);
+	}
+	
+	if (result.buffer != 0)
+	{
+		View_ID view_id = get_this_ctx_view(app, Access_Always);
+		point_stack_push_view_cursor(app, view_id);
+		ts_jump_to_location(app, view_id, result.buffer, result.pos);
+	}
+}
+
