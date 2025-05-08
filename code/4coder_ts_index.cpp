@@ -134,7 +134,6 @@ ts_code_index_init(Application_Links *app)
 	ts_index->arena = make_arena_system(KB(512));
 	ts_index->mutex = system_mutex_make();
 	
-	
 	ts_index->ext_to_language_table = make_table_Data_Data(ts_index->arena.base_allocator, 32);
 	
 	ts_init_c_language(app, ts_index);
@@ -285,4 +284,71 @@ ts_code_index_update_tick(Application_Links *app)
 	}
 	
 	buffer_modified_set_clear();
+}
+
+function String_Const_u8
+ts_push_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	TSNode root = ts_tree_root_node(ts_data->tree);
+	TSNode node = ts_node_descendant_for_byte_range(root, (i32)pos, (i32)pos);
+	Range_i64 node_range = tree_sitter_get_range(node);
+	String_Const_u8 result = push_buffer_range(app, arena, buffer, node_range);
+	return(result);
+}
+
+function String_Const_u8
+ts_push_word_under_active_cursor(Application_Links *app, Arena *arena, View_ID view, Buffer_ID buffer){
+	i64 pos = view_get_cursor_pos(app, view);
+	return(ts_push_word_under_pos(app, arena, buffer, pos));
+}
+
+function void
+ts_goto_definition(Application_Links *app, TS_Index_Note *note, b32 same_panel)
+{
+	if (note != 0)
+	{
+		View_ID view = get_active_view(app, Access_Always);
+		Rect_f32 region = view_get_buffer_region(app, view);
+		f32 view_height = rect_height(region);
+		Buffer_ID buffer = note->buffer_id;
+		if(!same_panel)
+		{
+			view = get_next_view_looped_primary_panels(app, view, Access_Always);
+		}
+		point_stack_push_view_cursor(app, view);
+		view_set_buffer(app, view, buffer, 0);
+		i64 line_number = get_line_number_from_pos(app, buffer, note->range.min);
+		Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+		scroll.position.line_number = line_number;
+		scroll.target.line_number = line_number;
+		scroll.position.pixel_shift.y = scroll.target.pixel_shift.y = -view_height*0.5f;
+		view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
+		view_set_cursor(app, view, seek_pos(note->range.min));
+		view_set_mark(app, view, seek_pos(note->range.min));
+	}
+}
+
+CUSTOM_COMMAND_SIG(ts_goto_definition)
+CUSTOM_DOC("Goes to the definition of the identifier under the cursor in the same panel.")
+{
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Scratch_Block scratch(app);
+	String_Const_u8 string = ts_push_word_under_active_cursor(app, scratch, view, buffer);
+	
+	TS_Index_Note *note = ts_code_index_note_from_string(string);
+	ts_goto_definition(app, note, 0);
+}
+
+CUSTOM_COMMAND_SIG(ts_goto_definition_same_panel)
+CUSTOM_DOC("Goes to the definition of the identifier under the cursor in the same panel.")
+{
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Scratch_Block scratch(app);
+	String_Const_u8 string = ts_push_word_under_active_cursor(app, scratch, view, buffer);
+	
+	TS_Index_Note *note = ts_code_index_note_from_string(string);
+	ts_goto_definition(app, note, 1);
 }
