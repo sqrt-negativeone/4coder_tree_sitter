@@ -11,6 +11,18 @@ enum
 
 external const TSLanguage *tree_sitter_c(void);
 
+global String_Const_u8 c_scope_query_str =
+str8_lit
+(
+ R"scm(
+[
+(_ "{"@scope.open "}" @scope.close)
+(_ "("@scope.open ")" @scope.close)
+(_ "["@scope.open "]" @scope.close)
+] @scope
+)scm"
+ );
+
 global String_Const_u8 c_index_query_str =
 str8_lit
 (
@@ -226,6 +238,14 @@ ts_init_c_language(Application_Links *app, TS_Index_Context *ts_index)
 	c_language.index_query = ts_query_new(c_language.language, (char*)c_index_query_str.str, (u32)c_index_query_str.size, &err_offset, &err_type);
 	Assert(c_language.index_query);
 	if (!c_language.index_query)
+	{
+		print_message(app, str8_lit("couldn't create highlight query"));
+	}
+	
+	
+	c_language.scope_query = ts_query_new(c_language.language, (char*)c_scope_query_str.str, (u32)c_scope_query_str.size, &err_offset, &err_type);
+	Assert(c_language.scope_query);
+	if (!c_language.scope_query)
 	{
 		print_message(app, str8_lit("couldn't create highlight query"));
 	}

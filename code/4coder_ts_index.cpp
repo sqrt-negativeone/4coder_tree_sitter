@@ -21,10 +21,38 @@ struct TS_Index_Note_List
 	u32 count;
 };
 
+
+struct TS_Layout_Scope
+{
+	TS_Layout_Scope *parent;
+	TS_Layout_Scope *next;
+	TS_Layout_Scope *prev;
+	TS_Layout_Scope *first_child;
+	TS_Layout_Scope *last_child;
+	
+	u32 nest_level;
+	Range_i64 range;
+};
+
+struct Range_i64_List_Node
+{
+	Range_i64_List_Node *next;
+	Range_i64_List_Node *prev;
+	
+	Range_i64 range;
+};
+
+struct Range_i64_List
+{
+	Range_i64_List_Node *first;
+	Range_i64_List_Node *last;
+};
+
 struct TS_Index_File
 {
 	Arena arena;
 	TS_Index_Note_List notes;
+	TS_Layout_Scope *scopes_root;
 };
 
 
@@ -35,6 +63,7 @@ struct TS_Language
 	const TSLanguage *language;
 	TSQuery *highlight_query;
 	TSQuery *index_query;
+	TSQuery *scope_query;
 	
 	// TODO(fakhri): note_kind_to_color_id can just be an array, and then we index with note kind
 	Table_u64_u64   note_kind_to_color_id;
@@ -230,6 +259,27 @@ ts_update_index_file(TS_Data *ts_data, TS_Index_File *new_index_file)
 	}
 }
 
+function TS_Layout_Scope *
+ts_push_scope_node(TS_Layout_Scope *parent, TS_Layout_Scope *scope_node)
+{
+	// NOTE(fakhri): find the first parent node that fully contains the new scope
+	TS_Layout_Scope *new_parent = parent;
+	for (;new_parent && new_parent->parent;
+			 new_parent = new_parent->parent)
+	{
+		if (range_contains(new_parent->range, scope_node->range.start) &&
+				range_contains(new_parent->range, scope_node->range.end))
+		{
+			break;
+		}
+	}
+	
+	scope_node->parent = new_parent;
+	scope_node->nest_level = new_parent->nest_level + 1;
+	zdll_push_front(new_parent->first_child, new_parent->last_child, scope_node);
+	return scope_node;
+}
+
 function void
 ts_code_index_update_tick(Application_Links *app)
 {
@@ -252,34 +302,104 @@ ts_code_index_update_tick(Application_Links *app)
 		TS_Index_File *file = push_array_zero(&arena, TS_Index_File, 1);
 		file->arena = arena;
 		
-		TSQueryCursor *index_cursor = ts_query_cursor_new();
-		if (index_cursor)
+		// NOTE(fakhri): indexing
 		{
-			ProfileBlock(app, "TreeSitter Indexing");
-			TSNode root = ts_tree_root_node(ts_data->tree);
-			
-#if 0
-			ts_query_cursor_set_max_start_depth(index_cursor, 8);
-#endif
-			ts_query_cursor_exec(index_cursor, language->index_query, root);
-			
-			TSQueryMatch match = {};
-			u32 capture_index = 0;
-			while (ts_query_cursor_next_capture(index_cursor, &match, &capture_index))
+			TSQueryCursor *index_query_cursor = ts_query_cursor_new();
+			if (index_query_cursor && language->index_query)
 			{
-				const TSQueryCapture *capture = match.captures + capture_index;
+				ProfileBlock(app, "TreeSitter Indexing");
+				TSNode root = ts_tree_root_node(ts_data->tree);
 				
-				Range_i64 node_range = tree_sitter_get_range(capture->node);
-				u32 capture_name_len = 0;
-				const char *capture_name_str = ts_query_capture_name_for_id(language->index_query, capture->index, &capture_name_len);
-				String_Const_u8 capture_name = SCu8((u8*)capture_name_str, capture_name_len);
+#if 0
+				ts_query_cursor_set_max_start_depth(index_query_cursor, 8);
+#endif
+				ts_query_cursor_exec(index_query_cursor, language->index_query, root);
 				
-				ts_make_index_note(file, buffer_id, 
-													 ts_node_kind_from_string(language, capture_name),
-													 node_range, string_substring(contents, node_range));
+				TSQueryMatch match = {};
+				u32 capture_index = 0;
+				while (ts_query_cursor_next_capture(index_query_cursor, &match, &capture_index))
+				{
+					const TSQueryCapture *capture = match.captures + capture_index;
+					
+					Range_i64 node_range = tree_sitter_get_range(capture->node);
+					u32 capture_name_len = 0;
+					const char *capture_name_str = ts_query_capture_name_for_id(language->index_query, capture->index, &capture_name_len);
+					String_Const_u8 capture_name = SCu8((u8*)capture_name_str, capture_name_len);
+					
+					ts_make_index_note(file, buffer_id, 
+														 ts_node_kind_from_string(language, capture_name),
+														 node_range, string_substring(contents, node_range));
+				}
+				
+				ts_query_cursor_delete(index_query_cursor);
 			}
+		}
+		
+		// NOTE(fakhri): scopes
+		{
+			file->scopes_root = push_array_zero(&file->arena, TS_Layout_Scope, 1);
+			TS_Layout_Scope *parent = file->scopes_root;
 			
-			ts_query_cursor_delete(index_cursor);
+			Range_i64_List scopes_list = {};
+			
+			TSQueryCursor *scope_query_cursor = ts_query_cursor_new();
+			if (scope_query_cursor && language->scope_query)
+			{
+				ProfileBlock(app, "TreeSitter Index Scopes");
+				TSNode root = ts_tree_root_node(ts_data->tree);
+				ts_query_cursor_exec(scope_query_cursor, language->scope_query, root);
+				
+				TSQueryMatch match = {};
+				while (ts_query_cursor_next_match(scope_query_cursor, &match))
+				{
+					Range_i64 scope_open_range = {};
+					Range_i64 scope_close_range = {};
+					Range_i64 scope_range = {};
+					
+					for (u32 cap_idx = 0; cap_idx < match.capture_count; cap_idx += 1)
+					{
+						TSQueryCapture scope_capture  = match.captures[cap_idx];
+						
+						u32 capture_name_len = 0;
+						const char *capture_name_str = ts_query_capture_name_for_id(language->scope_query, scope_capture.index, &capture_name_len);
+						String_Const_u8 capture_name = SCu8((u8*)capture_name_str, capture_name_len);
+						if (string_match(capture_name, str8_lit("scope.open")))
+						{
+							scope_open_range = tree_sitter_get_range(scope_capture.node);
+						}
+						else if (string_match(capture_name, str8_lit("scope.close")))
+						{
+							scope_close_range = tree_sitter_get_range(scope_capture.node);
+						}
+						else if (string_match(capture_name, str8_lit("scope")))
+						{
+							scope_range = tree_sitter_get_range(scope_capture.node);
+						}
+						else {
+							InvalidPath;
+						}
+					}
+					scope_range.start = scope_open_range.end;
+					scope_range.end   = scope_close_range.start;
+					
+					Range_i64_List_Node *range_node = push_array(scratch, Range_i64_List_Node, 1);
+					range_node->range = scope_range;
+					zdll_push_back(scopes_list.first, scopes_list.last, range_node);
+				}
+				
+				// NOTE(fakhri): walk the list backward to reconstruct scopes tree from DFS traversal 
+				for (Range_i64_List_Node *range_node = scopes_list.last;
+						 range_node;
+						 range_node = range_node->prev)
+				{
+					TS_Layout_Scope *scope_node = push_array(&file->arena, TS_Layout_Scope, 1);
+					scope_node->range = range_node->range;
+					
+					parent = ts_push_scope_node(parent, scope_node);
+				}
+				
+				ts_query_cursor_delete(scope_query_cursor);
+			}
 		}
 		
 		ts_code_index_lock();
@@ -289,201 +409,5 @@ ts_code_index_update_tick(Application_Links *app)
 	}
 	
 	buffer_modified_set_clear();
-}
-
-
-
-function String_Const_u8
-ts_push_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
-	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
-	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
-	TSNode root = ts_tree_root_node(ts_data->tree);
-	TSNode node = ts_node_descendant_for_byte_range(root, (i32)pos, (i32)pos);
-	Range_i64 node_range = tree_sitter_get_range(node);
-	String_Const_u8 result = push_buffer_range(app, arena, buffer, node_range);
-	return(result);
-}
-
-function String_Const_u8
-ts_push_word_under_active_cursor(Application_Links *app, Arena *arena, View_ID view, Buffer_ID buffer){
-	i64 pos = view_get_cursor_pos(app, view);
-	return(ts_push_word_under_pos(app, arena, buffer, pos));
-}
-
-function void
-ts_goto_definition(Application_Links *app, TS_Index_Note *note, b32 same_panel)
-{
-	if (note != 0)
-	{
-		View_ID view = get_active_view(app, Access_Always);
-		Rect_f32 region = view_get_buffer_region(app, view);
-		f32 view_height = rect_height(region);
-		Buffer_ID buffer = note->buffer_id;
-		if(!same_panel)
-		{
-			view = get_next_view_looped_primary_panels(app, view, Access_Always);
-		}
-		point_stack_push_view_cursor(app, view);
-		view_set_buffer(app, view, buffer, 0);
-		i64 line_number = get_line_number_from_pos(app, buffer, note->range.min);
-		Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
-		scroll.position.line_number = line_number;
-		scroll.target.line_number = line_number;
-		scroll.position.pixel_shift.y = scroll.target.pixel_shift.y = -view_height*0.5f;
-		view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
-		view_set_cursor(app, view, seek_pos(note->range.min));
-		view_set_mark(app, view, seek_pos(note->range.min));
-	}
-}
-
-CUSTOM_COMMAND_SIG(ts_goto_definition)
-CUSTOM_DOC("Goes to the definition of the identifier under the cursor in the same panel.")
-{
-	View_ID view = get_active_view(app, Access_Always);
-	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-	Scratch_Block scratch(app);
-	String_Const_u8 string = ts_push_word_under_active_cursor(app, scratch, view, buffer);
-	
-	TS_Index_Note *note = ts_code_index_note_from_string(string);
-	ts_goto_definition(app, note, 0);
-}
-
-CUSTOM_COMMAND_SIG(ts_goto_definition_same_panel)
-CUSTOM_DOC("Goes to the definition of the identifier under the cursor in the same panel.")
-{
-	View_ID view = get_active_view(app, Access_Always);
-	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-	Scratch_Block scratch(app);
-	String_Const_u8 string = ts_push_word_under_active_cursor(app, scratch, view, buffer);
-	
-	TS_Index_Note *note = ts_code_index_note_from_string(string);
-	ts_goto_definition(app, note, 1);
-}
-
-internal void
-_ts_push_lister_option_for_note(Application_Links *app, Arena *arena, Lister *lister, TS_Language *language, TS_Index_Note *note)
-{
-	if(note)
-	{
-		Buffer_ID buffer = note->buffer_id;
-		Managed_Scope scope = buffer_get_managed_scope(app, buffer);
-		TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
-		TS_Language *language = ts_data->language;
-		
-		Tiny_Jump *jump = push_array(arena, Tiny_Jump, 1);
-		jump->buffer = buffer;
-		jump->pos = note->range.first;
-		
-		String_Const_u8 buffer_name = push_buffer_unique_name(app, arena, buffer);
-		String_Const_u8 name = push_stringf(arena, "[%.*s] %.*s", string_expand(buffer_name), string_expand(note->text));
-		String_Const_u8 sort = str8_lit("");
-		
-		if (language->get_lister_note_kind_text)
-		{
-			sort = language->get_lister_note_kind_text(note, arena);
-		}
-		
-		lister_add_item(lister, name, sort, jump, 0);
-	}
-}
-
-internal void
-ts_jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, i64 pos)
-{
-	// NOTE(rjf): This function was ripped from 4coder's jump_to_location. It was copied
-	// and modified so that jumping to a location didn't cause a selection in notepad-like
-	// mode.
-	
-	view_set_active(app, view);
-	Buffer_Seek seek = seek_pos(pos);
-	set_view_to_location(app, view, buffer, seek);
-	
-	if (auto_center_after_jumps)
-	{
-		center_view(app);
-	}
-	view_set_cursor(app, view, seek);
-	view_set_mark(app, view, seek);
-}
-
-function void
-_ts_list_definitions_in_buffer(Application_Links *app, Buffer_ID buffer, Arena *arena, Lister *lister)
-{
-	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
-	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
-	
-	TS_Index_File *file = ts_data->file;
-	if (file != 0)
-	{
-		for(TS_Index_Note *note = file->notes.first; note; note = note->next)
-		{
-			_ts_push_lister_option_for_note(app, arena, lister, ts_data->language, note);
-		}
-	}
-}
-
-CUSTOM_UI_COMMAND_SIG(ts_search_for_definition__project_wide)
-CUSTOM_DOC("List all definitions in the index and jump to the one selected by the user.")
-{
-	char *query = "Index (Project):";
-	
-	Scratch_Block scratch(app);
-	Lister_Block lister(app, scratch);
-	lister_set_query(lister, query);
-	lister_set_default_handlers(lister);
-	
-	ts_code_index_lock();
-	{
-		for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
-				 buffer != 0; buffer = get_buffer_next(app, buffer, Access_Always))
-		{
-			_ts_list_definitions_in_buffer(app, buffer, scratch, lister);
-		}
-	}
-	ts_code_index_unlock();
-	
-	Lister_Result l_result = run_lister(app, lister);
-	Tiny_Jump result = {};
-	if (!l_result.canceled && l_result.user_data != 0){
-		block_copy_struct(&result, (Tiny_Jump*)l_result.user_data);
-	}
-	
-	if (result.buffer != 0)
-	{
-		View_ID view = get_this_ctx_view(app, Access_Always);
-		point_stack_push_view_cursor(app, view);
-		ts_jump_to_location(app, view, result.buffer, result.pos);
-	}
-}
-
-CUSTOM_UI_COMMAND_SIG(ts_search_for_definition__current_file)
-CUSTOM_DOC("List all definitions in the current file and jump to the one selected by the user.")
-{
-	char *query = "Index (File):";
-	
-	View_ID view = get_active_view(app, Access_Always);
-	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-	
-	Scratch_Block scratch(app);
-	Lister_Block lister(app, scratch);
-	lister_set_query(lister, query);
-	lister_set_default_handlers(lister);
-	
-	ts_code_index_lock();
-	_ts_list_definitions_in_buffer(app, buffer, scratch, lister);
-	ts_code_index_unlock();
-	
-	Lister_Result l_result = run_lister(app, lister);
-	Tiny_Jump result = {};
-	if (!l_result.canceled && l_result.user_data != 0){
-		block_copy_struct(&result, (Tiny_Jump*)l_result.user_data);
-	}
-	
-	if (result.buffer != 0)
-	{
-		View_ID view_id = get_this_ctx_view(app, Access_Always);
-		point_stack_push_view_cursor(app, view_id);
-		ts_jump_to_location(app, view_id, result.buffer, result.pos);
-	}
 }
 

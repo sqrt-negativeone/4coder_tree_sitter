@@ -2,7 +2,7 @@
 #define command_id(c) (fcoder_metacmd_ID_##c)
 #define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])
 #define command_metadata_by_id(id) (&fcoder_metacmd_table[id])
-#define command_one_past_last_id 272
+#define command_one_past_last_id 273
 #if defined(CUSTOM_COMMAND_SIG)
 #define PROC_LINKS(x,y) x
 #else
@@ -263,6 +263,7 @@ CUSTOM_COMMAND_SIG(ts_goto_definition);
 CUSTOM_COMMAND_SIG(ts_goto_definition_same_panel);
 CUSTOM_COMMAND_SIG(ts_search_for_definition__current_file);
 CUSTOM_COMMAND_SIG(ts_search_for_definition__project_wide);
+CUSTOM_COMMAND_SIG(ts_write_buffer_tree);
 CUSTOM_COMMAND_SIG(tutorial_maximize);
 CUSTOM_COMMAND_SIG(tutorial_minimize);
 CUSTOM_COMMAND_SIG(uncomment_line);
@@ -293,7 +294,7 @@ char *source_name;
 i32 source_name_len;
 i32 line_number;
 };
-static Command_Metadata fcoder_metacmd_table[272] = {
+static Command_Metadata fcoder_metacmd_table[273] = {
 { PROC_LINKS(allow_mouse, 0), false, "allow_mouse", 11, "Shows the mouse and causes all mouse input to be processed normally.", 68, "P:\\4coder_treesitter\\custom\\4coder_default_framework.cpp", 56, 481 },
 { PROC_LINKS(auto_indent_line_at_cursor, 0), false, "auto_indent_line_at_cursor", 26, "Auto-indents the line on which the cursor sits.", 47, "P:\\4coder_treesitter\\custom\\4coder_auto_indent.cpp", 50, 420 },
 { PROC_LINKS(auto_indent_range, 0), false, "auto_indent_range", 17, "Auto-indents the range between the cursor and the mark.", 55, "P:\\4coder_treesitter\\custom\\4coder_auto_indent.cpp", 50, 430 },
@@ -544,10 +545,11 @@ static Command_Metadata fcoder_metacmd_table[272] = {
 { PROC_LINKS(toggle_paren_matching_helper, 0), false, "toggle_paren_matching_helper", 28, "In code files matching parentheses pairs are colored with distinguishing colors.", 80, "P:\\4coder_treesitter\\custom\\4coder_default_framework.cpp", 56, 521 },
 { PROC_LINKS(toggle_show_whitespace, 0), false, "toggle_show_whitespace", 22, "Toggles the current buffer's whitespace visibility status.", 58, "P:\\4coder_treesitter\\custom\\4coder_base_commands.cpp", 52, 818 },
 { PROC_LINKS(toggle_virtual_whitespace, 0), false, "toggle_virtual_whitespace", 25, "Toggles virtual whitespace for all files.", 41, "P:\\4coder_treesitter\\custom\\4coder_code_index.cpp", 49, 1238 },
-{ PROC_LINKS(ts_goto_definition, 0), false, "ts_goto_definition", 18, "Goes to the definition of the identifier under the cursor in the same panel.", 76, "P:\\4coder_treesitter\\code\\4coder_ts_index.cpp", 45, 339 },
-{ PROC_LINKS(ts_goto_definition_same_panel, 0), false, "ts_goto_definition_same_panel", 29, "Goes to the definition of the identifier under the cursor in the same panel.", 76, "P:\\4coder_treesitter\\code\\4coder_ts_index.cpp", 45, 351 },
-{ PROC_LINKS(ts_search_for_definition__current_file, 0), true, "ts_search_for_definition__current_file", 38, "List all definitions in the current file and jump to the one selected by the user.", 82, "P:\\4coder_treesitter\\code\\4coder_ts_index.cpp", 45, 459 },
-{ PROC_LINKS(ts_search_for_definition__project_wide, 0), true, "ts_search_for_definition__project_wide", 38, "List all definitions in the index and jump to the one selected by the user.", 75, "P:\\4coder_treesitter\\code\\4coder_ts_index.cpp", 45, 425 },
+{ PROC_LINKS(ts_goto_definition, 0), false, "ts_goto_definition", 18, "Goes to the definition of the identifier under the cursor in the same panel.", 76, "P:\\4coder_treesitter\\code\\4coder_ts_commands.cpp", 48, 44 },
+{ PROC_LINKS(ts_goto_definition_same_panel, 0), false, "ts_goto_definition_same_panel", 29, "Goes to the definition of the identifier under the cursor in the same panel.", 76, "P:\\4coder_treesitter\\code\\4coder_ts_commands.cpp", 48, 56 },
+{ PROC_LINKS(ts_search_for_definition__current_file, 0), false, "ts_search_for_definition__current_file", 38, "List all definitions in the current file and jump to the one selected by the user.", 82, "P:\\4coder_treesitter\\code\\4coder_ts_commands.cpp", 48, 164 },
+{ PROC_LINKS(ts_search_for_definition__project_wide, 0), false, "ts_search_for_definition__project_wide", 38, "List all definitions in the index and jump to the one selected by the user.", 75, "P:\\4coder_treesitter\\code\\4coder_ts_commands.cpp", 48, 130 },
+{ PROC_LINKS(ts_write_buffer_tree, 0), false, "ts_write_buffer_tree", 20, "output tree sitter AST to *ts_tree* buffer", 42, "P:\\4coder_treesitter\\code\\4coder_ts_commands.cpp", 48, 231 },
 { PROC_LINKS(tutorial_maximize, 0), false, "tutorial_maximize", 17, "Expand the tutorial window", 26, "P:\\4coder_treesitter\\custom\\4coder_tutorial.cpp", 47, 20 },
 { PROC_LINKS(tutorial_minimize, 0), false, "tutorial_minimize", 17, "Shrink the tutorial window", 26, "P:\\4coder_treesitter\\custom\\4coder_tutorial.cpp", 47, 34 },
 { PROC_LINKS(uncomment_line, 0), false, "uncomment_line", 14, "If present, delete '//' at the beginning of the line after leading whitespace.", 78, "P:\\4coder_treesitter\\custom\\4coder_combined_write_commands.cpp", 62, 137 },
@@ -821,22 +823,23 @@ static i32 fcoder_metacmd_ID_ts_goto_definition = 250;
 static i32 fcoder_metacmd_ID_ts_goto_definition_same_panel = 251;
 static i32 fcoder_metacmd_ID_ts_search_for_definition__current_file = 252;
 static i32 fcoder_metacmd_ID_ts_search_for_definition__project_wide = 253;
-static i32 fcoder_metacmd_ID_tutorial_maximize = 254;
-static i32 fcoder_metacmd_ID_tutorial_minimize = 255;
-static i32 fcoder_metacmd_ID_uncomment_line = 256;
-static i32 fcoder_metacmd_ID_undo = 257;
-static i32 fcoder_metacmd_ID_undo_all_buffers = 258;
-static i32 fcoder_metacmd_ID_view_buffer_other_panel = 259;
-static i32 fcoder_metacmd_ID_view_jump_list_with_lister = 260;
-static i32 fcoder_metacmd_ID_word_complete = 261;
-static i32 fcoder_metacmd_ID_word_complete_drop_down = 262;
-static i32 fcoder_metacmd_ID_write_block = 263;
-static i32 fcoder_metacmd_ID_write_hack = 264;
-static i32 fcoder_metacmd_ID_write_note = 265;
-static i32 fcoder_metacmd_ID_write_space = 266;
-static i32 fcoder_metacmd_ID_write_text_and_auto_indent = 267;
-static i32 fcoder_metacmd_ID_write_text_input = 268;
-static i32 fcoder_metacmd_ID_write_todo = 269;
-static i32 fcoder_metacmd_ID_write_underscore = 270;
-static i32 fcoder_metacmd_ID_write_zero_struct = 271;
+static i32 fcoder_metacmd_ID_ts_write_buffer_tree = 254;
+static i32 fcoder_metacmd_ID_tutorial_maximize = 255;
+static i32 fcoder_metacmd_ID_tutorial_minimize = 256;
+static i32 fcoder_metacmd_ID_uncomment_line = 257;
+static i32 fcoder_metacmd_ID_undo = 258;
+static i32 fcoder_metacmd_ID_undo_all_buffers = 259;
+static i32 fcoder_metacmd_ID_view_buffer_other_panel = 260;
+static i32 fcoder_metacmd_ID_view_jump_list_with_lister = 261;
+static i32 fcoder_metacmd_ID_word_complete = 262;
+static i32 fcoder_metacmd_ID_word_complete_drop_down = 263;
+static i32 fcoder_metacmd_ID_write_block = 264;
+static i32 fcoder_metacmd_ID_write_hack = 265;
+static i32 fcoder_metacmd_ID_write_note = 266;
+static i32 fcoder_metacmd_ID_write_space = 267;
+static i32 fcoder_metacmd_ID_write_text_and_auto_indent = 268;
+static i32 fcoder_metacmd_ID_write_text_input = 269;
+static i32 fcoder_metacmd_ID_write_todo = 270;
+static i32 fcoder_metacmd_ID_write_underscore = 271;
+static i32 fcoder_metacmd_ID_write_zero_struct = 272;
 #endif

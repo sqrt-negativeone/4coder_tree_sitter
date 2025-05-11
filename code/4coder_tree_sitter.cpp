@@ -53,6 +53,8 @@ tree_sitter_get_range(TSNode node)
 
 
 #include "4coder_ts_index.cpp"
+#include "4coder_ts_commands.cpp"
+#include "4coder_ts_layout.cpp"
 
 BUFFER_EDIT_RANGE_SIG(tree_sitter_buffer_edit_range){
 	// buffer_id, new_range, original_size
@@ -280,13 +282,6 @@ BUFFER_HOOK_SIG(tree_sitter_begin_buffer){
 		else{
 			buffer_set_layout(app, buffer_id, layout_generic);
 		}
-	}
-#else
-	if (treat_as_code){
-		buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
-	}
-	else{
-		buffer_set_layout(app, buffer_id, layout_generic);
 	}
 #endif
 	
@@ -655,11 +650,12 @@ custom_layer_init(Application_Links *app){
 	// NOTE(allen): default hooks and command maps
 	set_all_default_hooks(app);
 	
-	set_custom_hook(app, HookID_BeginBuffer, tree_sitter_begin_buffer);
-	set_custom_hook(app, HookID_EndBuffer, ts_end_buffer);
-	set_custom_hook(app, HookID_Tick, tree_sitter_tick);
-	set_custom_hook(app, HookID_RenderCaller, tree_sitter_render_caller);
+	set_custom_hook(app, HookID_BeginBuffer,     tree_sitter_begin_buffer);
+	set_custom_hook(app, HookID_EndBuffer,       ts_end_buffer);
+	set_custom_hook(app, HookID_Tick,            tree_sitter_tick);
+	set_custom_hook(app, HookID_RenderCaller,    tree_sitter_render_caller);
 	set_custom_hook(app, HookID_BufferEditRange, tree_sitter_buffer_edit_range);
+	set_custom_hook(app, HookID_Layout, ts_layout);
 	
 	mapping_init(tctx, &framework_mapping);
 	String_ID global_map_id = vars_save_string_lit("keys_global");
@@ -671,5 +667,25 @@ custom_layer_init(Application_Links *app){
 	setup_default_mapping(&framework_mapping, global_map_id, file_map_id, code_map_id);
 #endif
 	setup_essential_mapping(&framework_mapping, global_map_id, file_map_id, code_map_id);
+	
+	
+	// NOTE(fakhri): create ts tree buffer
+	{
+		Buffer_ID buffer = create_buffer(app, string_u8_litexpr("*ts_tree*"),
+																		 BufferCreate_NeverAttachToFile |
+																		 BufferCreate_AlwaysNew);
+		buffer_set_setting(app, buffer, BufferSetting_Unimportant, true);
+		buffer_set_setting(app, buffer, BufferSetting_ReadOnly, true);
+	}
+	
+	
+	// NOTE(fakhri): create nests buffer
+	{
+		Buffer_ID buffer = create_buffer(app, string_u8_litexpr("*nests*"),
+																		 BufferCreate_NeverAttachToFile |
+																		 BufferCreate_AlwaysNew);
+		buffer_set_setting(app, buffer, BufferSetting_Unimportant, true);
+		buffer_set_setting(app, buffer, BufferSetting_ReadOnly, true);
+	}
 }
 

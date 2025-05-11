@@ -16,6 +16,19 @@ external const TSLanguage *tree_sitter_cpp(void);
 
 // TODO(fakhri): load queries from disk
 
+
+global String_Const_u8 cpp_scope_query_str =
+str8_lit
+(
+ R"scm(
+[
+(_ "{"@scope.open "}" @scope.close)
+(_ "("@scope.open ")" @scope.close)
+(_ "["@scope.open "]" @scope.close)
+] @scope
+)scm"
+ );
+
 global String_Const_u8 cpp_index_query_str =
 str8_lit
 (
@@ -197,6 +210,7 @@ str8_lit
 
 [
 (string_literal)
+(raw_string_literal)
 (system_lib_string)
 ] @defcolor_str_constant
 
@@ -276,6 +290,14 @@ ts_init_cpp_language(Application_Links *app, TS_Index_Context *ts_index)
 	cpp_language.index_query = ts_query_new(cpp_language.language, (char*)cpp_index_query_str.str, (u32)cpp_index_query_str.size, &err_offset, &err_type);
 	Assert(cpp_language.index_query);
 	if (!cpp_language.index_query)
+	{
+		print_message(app, str8_lit("couldn't create highlight query"));
+	}
+	
+	
+	cpp_language.scope_query = ts_query_new(cpp_language.language, (char*)cpp_scope_query_str.str, (u32)cpp_scope_query_str.size, &err_offset, &err_type);
+	Assert(cpp_language.scope_query);
+	if (!cpp_language.scope_query)
 	{
 		print_message(app, str8_lit("couldn't create highlight query"));
 	}
