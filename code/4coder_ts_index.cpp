@@ -337,14 +337,14 @@ ts_code_index_update_tick(Application_Links *app)
 		
 		// NOTE(fakhri): scopes
 		{
-			file->scopes_root = push_array_zero(&file->arena, TS_Layout_Scope, 1);
-			TS_Layout_Scope *parent = file->scopes_root;
-			
-			Range_i64_List scopes_list = {};
 			
 			TSQueryCursor *scope_query_cursor = ts_query_cursor_new();
 			if (scope_query_cursor && language->scope_query)
 			{
+				file->scopes_root = push_array_zero(&file->arena, TS_Layout_Scope, 1);
+				TS_Layout_Scope *parent = file->scopes_root;
+				Range_i64_List scopes_list = {};
+				
 				ProfileBlock(app, "TreeSitter Index Scopes");
 				TSNode root = ts_tree_root_node(ts_data->tree);
 				ts_query_cursor_exec(scope_query_cursor, language->scope_query, root);
@@ -381,6 +381,14 @@ ts_code_index_update_tick(Application_Links *app)
 					}
 					scope_range.start = scope_open_range.end;
 					scope_range.end   = scope_close_range.start;
+					
+#if 0
+					{
+						print_message(app, str8_lit("scope:"));
+						print_message(app, string_substring(contents,scope_range));
+						print_message(app, str8_lit("\n\n"));
+					}
+#endif
 					
 					Range_i64_List_Node *range_node = push_array(scratch, Range_i64_List_Node, 1);
 					range_node->range = scope_range;

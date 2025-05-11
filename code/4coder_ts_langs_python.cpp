@@ -8,6 +8,14 @@ enum
 
 external const TSLanguage *tree_sitter_python(void);
 
+
+global String_Const_u8 python_scope_query_str =
+str8_lit
+(
+ R"scm(
+)scm"
+ );
+
 global String_Const_u8 python_index_query_str =
 str8_lit
 (
@@ -163,6 +171,13 @@ ts_init_python_language(Application_Links *app, TS_Index_Context *ts_index)
 	python_language.index_query = ts_query_new(python_language.language, (char*)python_index_query_str.str, (u32)python_index_query_str.size, &err_offset, &err_type);
 	Assert(python_language.index_query);
 	if (!python_language.index_query)
+	{
+		print_message(app, str8_lit("couldn't create highlight query"));
+	}
+	
+	python_language.scope_query = ts_query_new(python_language.language, (char*)python_scope_query_str.str, (u32)python_scope_query_str.size, &err_offset, &err_type);
+	Assert(python_language.scope_query);
+	if (!python_language.scope_query)
 	{
 		print_message(app, str8_lit("couldn't create highlight query"));
 	}

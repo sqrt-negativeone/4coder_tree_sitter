@@ -1,3 +1,4 @@
+
 function TS_Layout_Scope *
 ts_get_layout_scope_for_offset(TS_Layout_Scope *root, i64 offset)
 {
@@ -294,12 +295,12 @@ ts_layout(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 rang
 	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
 	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
 	TS_Index_File *file = ts_data->file;
-	if (file)
+	if (file && file->scopes_root)
 	{
 		list = ts_layout__inner(app, arena, buffer, range, face, width, file, Layout_Unwrapped);
 	}
 	else {
-		list = layout_virt_indent_literal(app, arena, buffer, range, face, width, Layout_Unwrapped);
+		list = layout_basic(app, arena, buffer, range, face, width, Layout_Unwrapped);
 	}
 	
 	return(list);
