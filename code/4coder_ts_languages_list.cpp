@@ -5,10 +5,7 @@
 #include "4coder_ts_langs_python.cpp"
 #include "4coder_ts_langs_java.cpp"
 #include "4coder_ts_langs_c_sharp.cpp"
-
-#if 0
 #include "4coder_ts_langs_odin.cpp"
-#endif
 
 global Language_Description *g_languages[] = {
 	&cpp_language_description,
@@ -17,6 +14,7 @@ global Language_Description *g_languages[] = {
 	&python_language_description,
 	&java_language_description,
 	&c_sharp_language_description,
+	&odin_language_description,
 };
 
 
@@ -39,6 +37,7 @@ ts_init_ts_language(Application_Links *app, String_Const_u8 name, TS_Language *l
 		if (!language->highlight_query)
 		{
 			print_message(app, str8_lit("[ERROR]: couldn't create highlight query.\n"));
+			InvalidPath;
 		}
 	}
 	
@@ -53,6 +52,7 @@ ts_init_ts_language(Application_Links *app, String_Const_u8 name, TS_Language *l
 		if (!language->index_query)
 		{
 			print_message(app, str8_lit("[ERROR]: couldn't create index query.\n"));
+			InvalidPath;
 		}
 	}
 	
@@ -66,6 +66,7 @@ ts_init_ts_language(Application_Links *app, String_Const_u8 name, TS_Language *l
 		if (!language->scope_query)
 		{
 			print_message(app, str8_lit("[ERROR]: couldn't create scope query.\n"));
+			InvalidPath;
 		}
 	}
 }

@@ -3,132 +3,71 @@ enum
 {
 	Index_Note_Odin_None,
 	Index_Note_Odin_Function,
-	Index_Note_Odin_Product_Type,
-	Index_Note_Odin_Sum_Type,
+	Index_Note_Odin_Struct,
+	Index_Note_Odin_Enum,
 	Index_Note_Odin_Enum_Const,
 };
 
 external const TSLanguage *tree_sitter_odin(void);
-global TS_Language odin_language;
 
 
-// TODO(fakhri): add odin index query
-global String_Const_u8 odin_index_query_str =
-str8_lit
-(
- R"scm(
-
-)scm"
- );
-
-global String_Const_u8 odin_highlight_query_str = 
-str8_lit
-(
- R"scm(
-
-[
-"auto_cast"
-"bit_set"
- "break"
- "case"
-"cast" 
-"continue" 
-"defer" 
-"distinct" 
-"do" 
-"dynamic" 
-"else" 
-"enum"
- "for"
- "foreign"
- "if"
- "import"
- "in"
- "map"
- "not_in"
- "or_else"
- "or_return"
- "package"
- "proc"
- "return"
- "struct"
- "switch"
- "transmute"
- "union"
- "using"
- "when"
- "where"
-] @defcolor_keyword
-
-[
-".."
-"..="
-"..<"
-"::"
- ] @ts_color_operator
-
-(int_literal)   @defcolor_int_constant
-(float_literal) @defcolor_int_constant
-(rune_literal)  @defcolor_char_constant
-(bool_literal) @boolean
-(nil) @defcolor_int_constant
-
- (ERROR) @ts_color_error_annotation
-
-(package_identifier) @ts_color_namespace
-(label_identifier)   @ts_color_label
-
-(interpreted_string_literal) @defcolor_str_constant
-(raw_string_literal) @defcolor_str_constant
-(escape_sequence) @defcolor_str_constant
-
-(comment) @defcolor_comment
-; (const_identifier) @constant
-
-
-(compiler_directive) @ts_color_attribute
-(calling_convention) @ts_color_attribute
-
-; (identifier) @variable
-(pragma_identifier) @ts_color_attribute
-)scm"
- );
-
-
-function void
-ts_init_odin_language(Application_Links *app, TS_Index_Context *ts_index)
+function String_Const_u8
+ts_get_lister_note_kind_text_odin(TS_Index_Note *note, Arena *arena)
 {
-	odin_language.language = tree_sitter_odin();
+	String_Const_u8 result = str8_lit("");
+	if (!note) return result;
 	
-	u32 err_offset = 0;
-	TSQueryError err_type;
-	odin_language.highlight_query = ts_query_new(odin_language.language, (char*)odin_highlight_query_str.str, (u32)odin_highlight_query_str.size, &err_offset, &err_type);
-	Assert(odin_language.highlight_query);
-	if (!odin_language.highlight_query)
+	switch (note->kind)
 	{
-		print_message(app, str8_lit("couldn't create highlight query"));
+		case Index_Note_Odin_Function:
+		{
+			result = str8_lit("function");
+		} break;
+		case Index_Note_Odin_Struct:
+		{
+			result = str8_lit("type [struct]");
+		} break;
+		case Index_Note_Odin_Enum:
+		{
+			result = str8_lit("type [enum]");
+		} break;
+		case Index_Note_Odin_Enum_Const:
+		{
+			result = str8_lit("constant");
+		} break;
 	}
 	
-	odin_language.index_query = ts_query_new(odin_language.language, (char*)odin_index_query_str.str, (u32)odin_index_query_str.size, &err_offset, &err_type);
-	Assert(odin_language.index_query);
-	if (!odin_language.index_query)
-	{
-		print_message(app, str8_lit("couldn't create highlight query"));
-	}
-	
-	odin_language.name_to_note_kind_table = make_table_Data_u64(ts_index->arena.base_allocator, 32);
-	table_insert(&odin_language.name_to_note_kind_table, str8_lit("function_def"),     Index_Note_Odin_Function);
-	table_insert(&odin_language.name_to_note_kind_table, str8_lit("typedef.type"),     Index_Note_Odin_Product_Type);
-	table_insert(&odin_language.name_to_note_kind_table, str8_lit("typedef.struct"),   Index_Note_Odin_Product_Type);
-	table_insert(&odin_language.name_to_note_kind_table, str8_lit("typedef.enum"),     Index_Note_Odin_Product_Type);
-	table_insert(&odin_language.name_to_note_kind_table, str8_lit("typedef.union"),    Index_Note_Odin_Sum_Type);
-	table_insert(&odin_language.name_to_note_kind_table, str8_lit("enum.const"),       Index_Note_Odin_Enum_Const);
-	
-	odin_language.note_kind_to_color_id = make_table_u64_u64(ts_index->arena.base_allocator, 32);
-	table_insert(&odin_language.note_kind_to_color_id, Index_Note_Odin_Function,     managed_id_get(app, SCu8("colors"), str8_lit("defcolor_function")));
-	table_insert(&odin_language.note_kind_to_color_id, Index_Note_Odin_Product_Type, managed_id_get(app, SCu8("colors"), str8_lit("ts_color_prod_type")));
-	table_insert(&odin_language.note_kind_to_color_id, Index_Note_Odin_Sum_Type,     managed_id_get(app, SCu8("colors"), str8_lit("ts_color_sum_type")));
-	table_insert(&odin_language.note_kind_to_color_id, Index_Note_Odin_Enum_Const,   managed_id_get(app, SCu8("colors"), str8_lit("ts_color_constant")));
-	
-	table_insert(&ts_index->ext_to_language_table, str8_lit("odin"), make_data_struct(&odin_language));
+	return result;
 }
+
+global String_Note_Kind_Pair odin_name_to_kind_entries[] = {
+	{.text = str8_lit("function_def"),   .note_kind = Index_Note_Odin_Function},
+	{.text = str8_lit("typedef.struct"), .note_kind = Index_Note_Odin_Struct},
+	{.text = str8_lit("typedef.enum"),   .note_kind = Index_Note_Odin_Enum},
+	{.text = str8_lit("enum.const"),     .note_kind = Index_Note_Odin_Enum_Const},
+};
+
+global String_Note_Kind_Pair odin_note_kind_to_color_name_entries[] = {
+	{.text = str8_lit("defcolor_function"),  .note_kind = Index_Note_Odin_Function},
+	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Struct},
+	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Enum},
+	{.text = str8_lit("enum.const"),         .note_kind = Index_Note_Odin_Enum_Const},
+};
+
+global String_Const_u8 odin_extensions[] = {
+	str8_lit("odin"),
+};
+
+global Language_Description odin_language_description = {
+	.name = str8_lit("odin"),
+	.name_to_kind_entries_count    = ArrayCount(odin_name_to_kind_entries),
+	.name_to_kind_entries          = odin_name_to_kind_entries,
+	.note_kind_to_color_name_count = ArrayCount(odin_note_kind_to_color_name_entries),
+	.note_kind_to_color_name       = odin_note_kind_to_color_name_entries,
+	.extensions_count              = ArrayCount(odin_extensions),
+	.extensions                    = odin_extensions,
+	.language = {
+		.language                  = tree_sitter_odin(),
+		.get_lister_note_kind_text = ts_get_lister_note_kind_text_odin,
+	},
+};

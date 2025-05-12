@@ -33,7 +33,7 @@ if [ ! -f "libtree-sitter.a" ]; then
     
     	# Compile each file in the language directory
     	for file in "${dir}"*.*; do
-      	  if [ -f "$file" ]; then
+      	  if [[ -f "$file" && ! "$file" =~ ".scm" ]]; then
         	    file_name=$(basename "$file")
           	  outname="tree-sitter-${dir_name}-${file_name}.o"
             	gcc -c -O2 ${include_paths} -fPIC "$file" -o "$outname"

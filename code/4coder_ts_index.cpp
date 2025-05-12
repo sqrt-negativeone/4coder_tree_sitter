@@ -100,13 +100,12 @@ struct TS_Data
 	TS_Language *language;
 };
 
-
-
 struct TS_Index_Context
 {
 	Arena arena;
 	System_Mutex mutex;
 	TS_Index_Note *free_notes;
+	// TODO(fmouad): this table probably should be private per language?
 	TS_Index_Note_List name_to_note_table[4096];
 	
 	Table_Data_Data ext_to_language_table;
@@ -194,15 +193,6 @@ ts_code_index_init(Application_Links *app)
 	ts_index->ext_to_language_table = make_table_Data_Data(ts_index->arena.base_allocator, 32);
 	
 	ts_init_languages(app, ts_index);
-#if 0
-	ts_init_c_language(app, ts_index);
-	ts_init_cpp_language(app, ts_index);
-	ts_init_python_language(app, ts_index);
-	ts_init_java_language(app, ts_index);
-	ts_init_csharp_language(app, ts_index);
-	ts_init_go_language(app, ts_index);
-#endif
-	// ts_init_odin_language(app, ts_index);
 }
 
 function TS_Index_Note *
