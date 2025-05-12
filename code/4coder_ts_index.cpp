@@ -72,6 +72,26 @@ struct TS_Language
 	TS_Get_Lister_Note_Kind_Text_Proc *get_lister_note_kind_text;
 };
 
+struct String_Note_Kind_Pair
+{
+	String_Const_u8 text;
+	u64 note_kind;
+};
+
+struct Language_Description
+{
+	String_Const_u8 name;
+	
+	u32 name_to_kind_entries_count;
+	String_Note_Kind_Pair *name_to_kind_entries;
+	u32 note_kind_to_color_name_count;
+	String_Note_Kind_Pair *note_kind_to_color_name;
+	u32 extensions_count;
+	String_Const_u8 *extensions;
+	
+	TS_Language language;
+};
+
 struct TS_Data
 {
 	TSParser *parser;
@@ -94,13 +114,8 @@ struct TS_Index_Context
 
 global TS_Index_Context g_index_ctx;
 
-#include "4coder_ts_langs_c.cpp"
-#include "4coder_ts_langs_cpp.cpp"
-#include "4coder_ts_langs_odin.cpp"
-#include "4coder_ts_langs_python.cpp"
-#include "4coder_ts_langs_java.cpp"
-#include "4coder_ts_langs_c_sharp.cpp"
-#include "4coder_ts_langs_go.cpp"
+
+#include "4coder_ts_languages_list.cpp"
 
 function void
 ts_code_index_lock(void){
@@ -130,12 +145,20 @@ ts_begin_buffer(Application_Links *app, Buffer_ID buffer_id, Managed_Scope scope
 		
 		TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
 		ts_data->parser = ts_parser_new();
-		ts_parser_set_language(ts_data->parser, ts_language->language);
-		ts_data->language = ts_language;
-		
-		String_Const_u8 content = push_whole_buffer(app, scratch, buffer_id);
-		ts_data->tree = ts_parser_parse_string(ts_data->parser, 0, (char*)content.str, (u32)content.size);
-		buffer_mark_as_modified(buffer_id);
+		if (ts_parser_set_language(ts_data->parser, ts_language->language))
+		{
+			ts_data->language = ts_language;
+			
+			String_Const_u8 content = push_whole_buffer(app, scratch, buffer_id);
+			ts_data->tree = ts_parser_parse_string(ts_data->parser, 0, (char*)content.str, (u32)content.size);
+			buffer_mark_as_modified(buffer_id);
+		}
+		else
+		{
+			u32 lang_abi_ver = ts_language_abi_version(ts_language->language);
+			
+			InvalidPath;
+		}
 		
 	}
 	
@@ -170,12 +193,15 @@ ts_code_index_init(Application_Links *app)
 	
 	ts_index->ext_to_language_table = make_table_Data_Data(ts_index->arena.base_allocator, 32);
 	
+	ts_init_languages(app, ts_index);
+#if 0
 	ts_init_c_language(app, ts_index);
 	ts_init_cpp_language(app, ts_index);
 	ts_init_python_language(app, ts_index);
 	ts_init_java_language(app, ts_index);
 	ts_init_csharp_language(app, ts_index);
 	ts_init_go_language(app, ts_index);
+#endif
 	// ts_init_odin_language(app, ts_index);
 }
 
