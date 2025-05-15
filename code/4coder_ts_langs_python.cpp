@@ -1,21 +1,15 @@
 
 enum
 {
-	Index_Note_Python_None,
-	Index_Note_Python_Function,
-	Index_Note_Python_Type,
+	Index_Note_Python_None = Index_Note_COUNT,
 };
 
 external const TSLanguage *tree_sitter_python(void);
 
 global String_Note_Kind_Pair python_name_to_kind_entries[] = {
-	{.text = str8_lit("function_def"),       .note_kind = Index_Note_Python_Function},
-	{.text = str8_lit("typedef.type"),       .note_kind = Index_Note_Python_Type},
 };
 
 global String_Note_Kind_Pair python_note_kind_to_color_name_entries[] = {
-	{.text = str8_lit("defcolor_function"),        .note_kind = Index_Note_Python_Function},
-	{.text = str8_lit("ts_color_prod_type"),       .note_kind = Index_Note_Python_Type},
 };
 
 global String_Const_u8 python_extensions[] = {

@@ -10,9 +10,9 @@
 (procedure_declaration (identifier) @function_def (procedure (uninitialized)))
 
 ; Types
-(procedure_declaration (identifier) @typedef.type)
-(struct_declaration (identifier) @typedef.struct "::")
-(enum_declaration (identifier) @typedef.enum "::")
-(union_declaration (identifier) @typedef.union "::")
+(procedure_declaration (identifier) @typedef.prod_type)
+(struct_declaration (identifier) @typedef.prod_type "::")
+(enum_declaration (identifier) @typedef.prod_type   "::")
+(union_declaration (identifier) @typedef.sum_type   "::")
 
-(const_declaration (identifier) @typedef.type "::" [(array_type) (distinct_type) (bit_set_type) (pointer_type)])
+(const_declaration (identifier) @typedef.prod_type "::" [(array_type) (distinct_type) (bit_set_type) (pointer_type)])

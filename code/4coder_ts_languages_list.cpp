@@ -52,9 +52,34 @@ ts_init_ts_language(Application_Links *app, String_Const_u8 name, TS_Language *l
 	language->scope_query     = ts_create_query(app, language->language, ts_languages_path_root, str8_lit("scope.scm"));
 }
 
+
+function void
+ts_init_index_map(Application_Links *app, TS_Index_Map *map, Base_Allocator *base_allocator,
+									u32 name_to_kind_entries_count, String_Note_Kind_Pair *name_to_kind_entries,
+									u32 note_kind_to_color_name_count, String_Note_Kind_Pair *note_kind_to_color_name)
+{
+	map->name_to_note_kind_table = make_table_Data_u64(base_allocator, 32);
+	for (u32 i = 0; i < name_to_kind_entries_count; i += 1)
+	{
+		String_Note_Kind_Pair entry = name_to_kind_entries[i];
+		table_insert(&map->name_to_note_kind_table,  entry.text, entry.note_kind);
+	}
+	
+	map->note_kind_to_color_id_table = make_table_u64_u64(base_allocator, 32);
+	for (u32 i = 0; i < note_kind_to_color_name_count; i += 1)
+	{
+		String_Note_Kind_Pair entry = note_kind_to_color_name[i];
+		table_insert(&map->note_kind_to_color_id_table, entry.note_kind,  managed_id_get(app, SCu8("colors"), entry.text));
+	}
+}
+
 function void
 ts_init_languages(Application_Links *app, TS_Index_Context *ts_index)
 {
+	ts_init_index_map(app, &ts_index->global_index_map, ts_index->arena.base_allocator,
+										ArrayCount(global_name_to_kind_entries), global_name_to_kind_entries,
+										ArrayCount(global_note_kind_to_color_name), global_note_kind_to_color_name);
+	
 	for (u32 lang_idx = 0; lang_idx < ArrayCount(g_languages); lang_idx += 1) {
 		Language_Description *lang_desc = g_languages[lang_idx];
 		
@@ -62,19 +87,9 @@ ts_init_languages(Application_Links *app, TS_Index_Context *ts_index)
 		
 		ts_init_ts_language(app, lang_desc->name, language);
 		
-		language->name_to_note_kind_table = make_table_Data_u64(ts_index->arena.base_allocator, 32);
-		for (u32 i = 0; i < lang_desc->name_to_kind_entries_count; i += 1)
-		{
-			String_Note_Kind_Pair entry = lang_desc->name_to_kind_entries[i];
-			table_insert(&language->name_to_note_kind_table,  entry.text, entry.note_kind);
-		}
-		
-		language->note_kind_to_color_id = make_table_u64_u64(ts_index->arena.base_allocator, 32);
-		for (u32 i = 0; i < lang_desc->note_kind_to_color_name_count; i += 1)
-		{
-			String_Note_Kind_Pair entry = lang_desc->note_kind_to_color_name[i];
-			table_insert(&language->note_kind_to_color_id, entry.note_kind,  managed_id_get(app, SCu8("colors"), entry.text));
-		}
+		ts_init_index_map(app, &language->index_map, ts_index->arena.base_allocator,
+											lang_desc->name_to_kind_entries_count, lang_desc->name_to_kind_entries,
+											lang_desc->note_kind_to_color_name_count, lang_desc->note_kind_to_color_name);
 		
 		for (u32 i = 0; i < lang_desc->extensions_count; i += 1)
 			table_insert(&ts_index->ext_to_language_table, lang_desc->extensions[i], make_data_struct(language));

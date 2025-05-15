@@ -1,13 +1,9 @@
 
 enum
 {
-	Index_Note_CPP_None,
+	Index_Note_CPP_None = Index_Note_COUNT,
 	Index_Note_CPP_Macro,
 	Index_Note_CPP_Namespace,
-	Index_Note_CPP_Function,
-	Index_Note_CPP_Product_Type,
-	Index_Note_CPP_Sum_Type,
-	Index_Note_CPP_Enum_Const,
 };
 
 
@@ -26,19 +22,19 @@ ts_get_lister_note_kind_text_cpp(TS_Index_Note *note, Arena *arena)
 		{
 			result = str8_lit("macro");
 		} break;
-		case Index_Note_CPP_Function:
+		case Index_Note_Function:
 		{
 			result = str8_lit("function");
 		} break;
-		case Index_Note_CPP_Product_Type:
+		case Index_Note_Product_Type:
 		{
 			result = str8_lit("type [product]");
 		} break;
-		case Index_Note_CPP_Sum_Type:
+		case Index_Note_Sum_Type:
 		{
 			result = str8_lit("type [sum]");
 		} break;
-		case Index_Note_CPP_Enum_Const:
+		case Index_Note_Constant:
 		{
 			result = str8_lit("constant");
 		} break;
@@ -56,21 +52,9 @@ ts_get_lister_note_kind_text_cpp(TS_Index_Note *note, Arena *arena)
 global String_Note_Kind_Pair cpp_name_to_kind_entries[] = {
 	{.text = str8_lit("namespace_def"),    .note_kind = Index_Note_CPP_Namespace},
 	{.text = str8_lit("macro_def"),        .note_kind = Index_Note_CPP_Macro},
-	{.text = str8_lit("function_def"),     .note_kind = Index_Note_CPP_Function},
-	{.text = str8_lit("typedef.type"),     .note_kind = Index_Note_CPP_Product_Type},
-	{.text = str8_lit("typedef.class"),    .note_kind = Index_Note_CPP_Product_Type},
-	{.text = str8_lit("typedef.function"), .note_kind = Index_Note_CPP_Product_Type},
-	{.text = str8_lit("typedef.struct"),   .note_kind = Index_Note_CPP_Product_Type},
-	{.text = str8_lit("typedef.enum"),     .note_kind = Index_Note_CPP_Product_Type},
-	{.text = str8_lit("typedef.union"),    .note_kind = Index_Note_CPP_Sum_Type},
-	{.text = str8_lit("enum.const"),       .note_kind = Index_Note_CPP_Enum_Const},
 };
 
 global String_Note_Kind_Pair cpp_note_kind_to_color_name_entries[] = {
-	{.text = str8_lit("defcolor_function"),  .note_kind = Index_Note_CPP_Function},
-	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_CPP_Product_Type},
-	{.text = str8_lit("ts_color_sum_type"),  .note_kind = Index_Note_CPP_Sum_Type},
-	{.text = str8_lit("ts_color_constant"),  .note_kind = Index_Note_CPP_Enum_Const},
 	{.text = str8_lit("ts_color_macro"),     .note_kind = Index_Note_CPP_Macro},
 	{.text = str8_lit("ts_color_namespace"), .note_kind = Index_Note_CPP_Namespace},
 };

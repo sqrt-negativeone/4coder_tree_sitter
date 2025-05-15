@@ -1,5 +1,21 @@
 
 typedef u64 TS_Index_Note_Kind;
+enum
+{
+	Index_Note_None,
+	Index_Note_Function,
+	Index_Note_Product_Type,
+	Index_Note_Sum_Type,
+	Index_Note_Constant,
+	
+	Index_Note_COUNT,
+};
+
+struct String_Note_Kind_Pair
+{
+	String_Const_u8 text;
+	u64 note_kind;
+};
 
 struct TS_Index_Note
 {
@@ -55,6 +71,11 @@ struct TS_Index_File
 	TS_Layout_Scope *scopes_root;
 };
 
+struct TS_Index_Map
+{
+	Table_Data_u64 name_to_note_kind_table;
+	Table_u64_u64  note_kind_to_color_id_table;
+};
 
 typedef String_Const_u8 TS_Get_Lister_Note_Kind_Text_Proc(TS_Index_Note *note, Arena *arena);
 
@@ -66,17 +87,12 @@ struct TS_Language
 	TSQuery *scope_query;
 	
 	// TODO(fakhri): note_kind_to_color_id can just be an array, and then we index with note kind
-	Table_u64_u64   note_kind_to_color_id;
-	Table_Data_u64  name_to_note_kind_table;
+	
+	TS_Index_Map index_map;
 	
 	TS_Get_Lister_Note_Kind_Text_Proc *get_lister_note_kind_text;
 };
 
-struct String_Note_Kind_Pair
-{
-	String_Const_u8 text;
-	u64 note_kind;
-};
 
 struct Language_Description
 {
@@ -100,6 +116,7 @@ struct TS_Data
 	TS_Language *language;
 };
 
+
 struct TS_Index_Context
 {
 	Arena arena;
@@ -108,10 +125,26 @@ struct TS_Index_Context
 	// TODO(fmouad): this table probably should be private per language?
 	TS_Index_Note_List name_to_note_table[4096];
 	
+	TS_Index_Map global_index_map;
+	
 	Table_Data_Data ext_to_language_table;
 };
 
 global TS_Index_Context g_index_ctx;
+
+global String_Note_Kind_Pair global_name_to_kind_entries[] = {
+	{.text = str8_lit("function_def"),      .note_kind = Index_Note_Function},
+	{.text = str8_lit("typedef.prod_type"), .note_kind = Index_Note_Product_Type},
+	{.text = str8_lit("typedef.sum_type"),  .note_kind = Index_Note_Sum_Type},
+	{.text = str8_lit("constant"),          .note_kind = Index_Note_Constant},
+};
+
+global String_Note_Kind_Pair global_note_kind_to_color_name[] = {
+	{.text = str8_lit("defcolor_function"),  .note_kind = Index_Note_Function},
+	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Product_Type},
+	{.text = str8_lit("ts_color_sum_type"),  .note_kind = Index_Note_Sum_Type},
+	{.text = str8_lit("ts_color_constant"),  .note_kind = Index_Note_Constant},
+};
 
 
 #include "4coder_ts_languages_list.cpp"
@@ -219,7 +252,10 @@ function TS_Index_Note_Kind
 ts_node_kind_from_string(TS_Language *lang, String_Const_u8 capture_name)
 {
 	TS_Index_Note_Kind note_kind = 0;
-	table_read(&lang->name_to_note_kind_table, capture_name, &note_kind);
+	if (!table_read(&g_index_ctx.global_index_map.name_to_note_kind_table, capture_name, &note_kind))
+	{
+		table_read(&lang->index_map.name_to_note_kind_table, capture_name, &note_kind);
+	}
 	return note_kind;
 }
 
@@ -227,7 +263,11 @@ function Managed_ID
 ts_code_index_color_from_note(Application_Links *app, TS_Language *lang, TS_Index_Note *note)
 {
 	Managed_ID color_id = 0;
-	table_read(&lang->note_kind_to_color_id, note->kind, &color_id);
+	if (note->kind < Index_Note_COUNT)
+	{
+		table_read(&g_index_ctx.global_index_map.note_kind_to_color_id_table, note->kind, &color_id);
+	}
+	else table_read(&lang->index_map.note_kind_to_color_id_table, note->kind, &color_id);
 	return color_id;
 }
 

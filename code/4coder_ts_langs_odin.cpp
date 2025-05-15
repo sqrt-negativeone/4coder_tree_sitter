@@ -1,13 +1,7 @@
 
 enum
 {
-	Index_Note_Odin_None,
-	Index_Note_Odin_Function,
-	Index_Note_Odin_Type,
-	Index_Note_Odin_Union,
-	Index_Note_Odin_Struct,
-	Index_Note_Odin_Enum,
-	Index_Note_Odin_Enum_Const,
+	Index_Note_Odin_None = Index_Note_COUNT,
 };
 
 external const TSLanguage *tree_sitter_odin(void);
@@ -21,19 +15,15 @@ ts_get_lister_note_kind_text_odin(TS_Index_Note *note, Arena *arena)
 	
 	switch (note->kind)
 	{
-		case Index_Note_Odin_Function:
+		case Index_Note_Function:
 		{
 			result = str8_lit("function");
 		} break;
-		case Index_Note_Odin_Struct:
+		case Index_Note_Product_Type:
 		{
 			result = str8_lit("type [struct]");
 		} break;
-		case Index_Note_Odin_Enum:
-		{
-			result = str8_lit("type [enum]");
-		} break;
-		case Index_Note_Odin_Enum_Const:
+		case Index_Note_Constant:
 		{
 			result = str8_lit("constant");
 		} break;
@@ -43,21 +33,9 @@ ts_get_lister_note_kind_text_odin(TS_Index_Note *note, Arena *arena)
 }
 
 global String_Note_Kind_Pair odin_name_to_kind_entries[] = {
-	{.text = str8_lit("function_def"),   .note_kind = Index_Note_Odin_Function},
-	{.text = str8_lit("typedef.struct"), .note_kind = Index_Note_Odin_Struct},
-	{.text = str8_lit("typedef.enum"),   .note_kind = Index_Note_Odin_Enum},
-	{.text = str8_lit("typedef.type"),   .note_kind = Index_Note_Odin_Type},
-	{.text = str8_lit("typedef.union"),   .note_kind = Index_Note_Odin_Union},
-	{.text = str8_lit("enum.const"),     .note_kind = Index_Note_Odin_Enum_Const},
 };
 
 global String_Note_Kind_Pair odin_note_kind_to_color_name_entries[] = {
-	{.text = str8_lit("defcolor_function"),  .note_kind = Index_Note_Odin_Function},
-	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Struct},
-	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Enum},
-	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Type},
-	{.text = str8_lit("ts_color_sum_type"), .note_kind = Index_Note_Odin_Union},
-	{.text = str8_lit("enum.const"),         .note_kind = Index_Note_Odin_Enum_Const},
 };
 
 global String_Const_u8 odin_extensions[] = {
