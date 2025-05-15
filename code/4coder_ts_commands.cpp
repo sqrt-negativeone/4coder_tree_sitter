@@ -233,6 +233,7 @@ CUSTOM_DOC("output tree sitter AST to *ts_tree* buffer")
 {
 	Scratch_Block scratch(app);
 	Buffer_ID out_buffer = get_buffer_by_name(app, string_u8_litexpr("*ts_tree*"), Access_Always);
+	buffer_replace_range(app, out_buffer, buffer_range(app, out_buffer), str8_lit(""));
 	
 	View_ID view = get_active_view(app, Access_Always);
 	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);

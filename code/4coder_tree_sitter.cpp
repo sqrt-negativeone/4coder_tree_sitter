@@ -368,6 +368,8 @@ tree_sitter_draw_text_highlight_colors(Application_Links *app, Text_Layout_ID te
 			Temp_Memory_Block temp(scratch);
 			TSNode node = ts_tree_cursor_current_node(&tree_cursor);
 			Range_i64 node_range = tree_sitter_get_range(node);
+			TSSymbol symbol = ts_node_symbol(node);
+			const char *type_name = ts_language_symbol_name(ts_node_language(node), symbol);
 			if (node_range.start >= visible_range.end) break;
 			
 			String_Const_u8 lexeme = push_buffer_range(app, scratch, buffer_id, node_range);

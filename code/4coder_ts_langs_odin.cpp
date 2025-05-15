@@ -3,6 +3,8 @@ enum
 {
 	Index_Note_Odin_None,
 	Index_Note_Odin_Function,
+	Index_Note_Odin_Type,
+	Index_Note_Odin_Union,
 	Index_Note_Odin_Struct,
 	Index_Note_Odin_Enum,
 	Index_Note_Odin_Enum_Const,
@@ -44,6 +46,8 @@ global String_Note_Kind_Pair odin_name_to_kind_entries[] = {
 	{.text = str8_lit("function_def"),   .note_kind = Index_Note_Odin_Function},
 	{.text = str8_lit("typedef.struct"), .note_kind = Index_Note_Odin_Struct},
 	{.text = str8_lit("typedef.enum"),   .note_kind = Index_Note_Odin_Enum},
+	{.text = str8_lit("typedef.type"),   .note_kind = Index_Note_Odin_Type},
+	{.text = str8_lit("typedef.union"),   .note_kind = Index_Note_Odin_Union},
 	{.text = str8_lit("enum.const"),     .note_kind = Index_Note_Odin_Enum_Const},
 };
 
@@ -51,6 +55,8 @@ global String_Note_Kind_Pair odin_note_kind_to_color_name_entries[] = {
 	{.text = str8_lit("defcolor_function"),  .note_kind = Index_Note_Odin_Function},
 	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Struct},
 	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Enum},
+	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Odin_Type},
+	{.text = str8_lit("ts_color_sum_type"), .note_kind = Index_Note_Odin_Union},
 	{.text = str8_lit("enum.const"),         .note_kind = Index_Note_Odin_Enum_Const},
 };
 

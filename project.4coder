@@ -35,8 +35,18 @@ commands = {
 		.linux = "./build.sh",
 		.win = "build.bat",
 	},
+	
+	.build_parsers =
+	{
+		.out = "*compilation*",
+		.footer_panel = true,
+		.save_dirty_files = true,
+		.linux = "./build_parsers.sh",
+		.win = "build.bat",
+	},
 };
 
 fkey_command = {
 	.F1 = "build",
+	.F2 = "build_parsers",
 };

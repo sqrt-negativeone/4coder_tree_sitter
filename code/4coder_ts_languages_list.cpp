@@ -17,6 +17,26 @@ global Language_Description *g_languages[] = {
 	&odin_language_description,
 };
 
+function TSQuery *
+ts_create_query(Application_Links *app, const TSLanguage *language, String_Const_u8 ts_languages_path_root, String_Const_u8 query_file_name)
+{
+	TSQuery *result = 0;
+	Scratch_Block scratch(app);
+	File_Name_Data query_data = dump_file(scratch, push_stringf(scratch, "%.*s/%.*s", string_expand(ts_languages_path_root), string_expand(query_file_name)));
+	if (query_data.data.size)
+	{
+		u32 err_offset = 0;
+		TSQueryError err_type;
+		result = ts_query_new(language, (char*)query_data.data.str, (u32)query_data.data.size, &err_offset, &err_type);
+		if (!result)
+		{
+			print_message(app, str8_lit("[ERROR]: couldn't create query.\n"));
+			InvalidPath;
+		}
+	}
+	
+	return result;
+}
 
 function void
 ts_init_ts_language(Application_Links *app, String_Const_u8 name, TS_Language *language)
@@ -25,50 +45,11 @@ ts_init_ts_language(Application_Links *app, String_Const_u8 name, TS_Language *l
 	
 	String_Const_u8 exe_path = string_remove_last_folder(system_get_path(scratch, SystemPath_Binary));
 	
-	
 	String_Const_u8 ts_languages_path_root = push_stringf(scratch, "%.*slangs/%s", string_expand(exe_path), name);
 	
-	File_Name_Data highlight_query_data = dump_file(scratch, push_stringf(scratch, "%.*s/highlight.scm", string_expand(ts_languages_path_root)));
-	if (highlight_query_data.data.size)
-	{
-		u32 err_offset = 0;
-		TSQueryError err_type;
-		language->highlight_query = ts_query_new(language->language, (char*)highlight_query_data.data.str, (u32)highlight_query_data.data.size, &err_offset, &err_type);
-		if (!language->highlight_query)
-		{
-			print_message(app, str8_lit("[ERROR]: couldn't create highlight query.\n"));
-			InvalidPath;
-		}
-	}
-	
-	
-	
-	File_Name_Data index_query_data = dump_file(scratch, push_stringf(scratch, "%.*s/index.scm", string_expand(ts_languages_path_root)));
-	if (index_query_data.data.size)
-	{
-		u32 err_offset = 0;
-		TSQueryError err_type;
-		language->index_query = ts_query_new(language->language, (char*)index_query_data.data.str, (u32)index_query_data.data.size, &err_offset, &err_type);
-		if (!language->index_query)
-		{
-			print_message(app, str8_lit("[ERROR]: couldn't create index query.\n"));
-			InvalidPath;
-		}
-	}
-	
-	
-	File_Name_Data scope_query_data = dump_file(scratch, push_stringf(scratch, "%.*s/scope.scm", string_expand(ts_languages_path_root)));
-	if (scope_query_data.data.size)
-	{
-		u32 err_offset = 0;
-		TSQueryError err_type;
-		language->scope_query = ts_query_new(language->language, (char*)scope_query_data.data.str, (u32)scope_query_data.data.size, &err_offset, &err_type);
-		if (!language->scope_query)
-		{
-			print_message(app, str8_lit("[ERROR]: couldn't create scope query.\n"));
-			InvalidPath;
-		}
-	}
+	language->highlight_query = ts_create_query(app, language->language, ts_languages_path_root, str8_lit("highlight.scm"));
+	language->index_query     = ts_create_query(app, language->language, ts_languages_path_root, str8_lit("index.scm"));
+	language->scope_query     = ts_create_query(app, language->language, ts_languages_path_root, str8_lit("scope.scm"));
 }
 
 function void
