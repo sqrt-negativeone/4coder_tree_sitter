@@ -6,7 +6,7 @@ ts_auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 range)
 	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
 	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
 	TS_Index_File *file = ts_data->file;
-	if (!file) return;
+	if (!file || !file->scopes_root) return;
 	
 	Range_i64 line_numbers = get_line_range_from_pos_range(app, buffer, range);
 	i64 count = line_numbers.max - line_numbers.min + 1;
