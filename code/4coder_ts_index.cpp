@@ -86,11 +86,12 @@ struct TS_Language
 	TSQuery *index_query;
 	TSQuery *scope_query;
 	
-	// TODO(fakhri): note_kind_to_color_id can just be an array, and then we index with note kind
-	
 	TS_Index_Map index_map;
 	
 	TS_Get_Lister_Note_Kind_Text_Proc *get_lister_note_kind_text;
+	
+	// TODO(fmouad): this table probably should be private per language?
+	TS_Index_Note_List name_to_note_table[4096];
 };
 
 
@@ -122,8 +123,6 @@ struct TS_Index_Context
 	Arena arena;
 	System_Mutex mutex;
 	TS_Index_Note *free_notes;
-	// TODO(fmouad): this table probably should be private per language?
-	TS_Index_Note_List name_to_note_table[4096];
 	
 	TS_Index_Map global_index_map;
 	
@@ -229,14 +228,14 @@ ts_code_index_init(Application_Links *app)
 }
 
 function TS_Index_Note *
-ts_code_index_note_from_string(String_Const_u8 string)
+ts_code_index_note_from_string(TS_Language *ts_language, String_Const_u8 string)
 {
 	TS_Index_Note *result = 0;
 	TS_Index_Context *ts_index = &g_index_ctx;
 	
 	u64 hash = table_hash_u8(string.str, string.size);
-	u64 slot_index = hash % ArrayCount(ts_index->name_to_note_table);
-	for (TS_Index_Note *note = ts_index->name_to_note_table[slot_index].first;
+	u64 slot_index = hash % ArrayCount(ts_language->name_to_note_table);
+	for (TS_Index_Note *note = ts_language->name_to_note_table[slot_index].first;
 			 note; note = note->next_hash)
 	{
 		if (note->hash == hash && string_match(note->text, string))
@@ -274,6 +273,7 @@ ts_code_index_color_from_note(Application_Links *app, TS_Language *lang, TS_Inde
 function void
 ts_clear_index_file(TS_Data *ts_data)
 {
+	TS_Language *ts_language = ts_data->language;
 	TS_Index_File *old_index_file = ts_data->file;
 	if (old_index_file)
 	{
@@ -281,9 +281,9 @@ ts_clear_index_file(TS_Data *ts_data)
 		for (TS_Index_Note *note = old_index_file->notes.first;
 				 note; note = note->next)
 		{
-			u64 slot_index = note->hash % ArrayCount(g_index_ctx.name_to_note_table);
+			u64 slot_index = note->hash % ArrayCount(ts_language->name_to_note_table);
 			
-			TS_Index_Note_List *list = g_index_ctx.name_to_note_table + slot_index;
+			TS_Index_Note_List *list = ts_language->name_to_note_table + slot_index;
 			zdll_remove_NP_(list->first, list->last, note, next_hash, prev_hash);
 			list->count -= 1;
 		}
@@ -299,6 +299,7 @@ ts_update_index_file(TS_Data *ts_data, TS_Index_File *new_index_file)
 {
 	ts_clear_index_file(ts_data);
 	
+	TS_Language *ts_language = ts_data->language;
 	if (new_index_file)
 	{
 		ts_data->file = new_index_file;
@@ -306,9 +307,9 @@ ts_update_index_file(TS_Data *ts_data, TS_Index_File *new_index_file)
 		for (TS_Index_Note *note = new_index_file->notes.first;
 				 note; note = note->next)
 		{
-			u64 slot_index = note->hash % ArrayCount(g_index_ctx.name_to_note_table);
+			u64 slot_index = note->hash % ArrayCount(ts_language->name_to_note_table);
 			
-			TS_Index_Note_List *list = g_index_ctx.name_to_note_table + slot_index;
+			TS_Index_Note_List *list = ts_language->name_to_note_table + slot_index;
 			zdll_push_back_NP_(list->first, list->last, note, next_hash, prev_hash);
 			list->count += 1;
 		}

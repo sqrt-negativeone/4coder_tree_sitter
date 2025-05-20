@@ -51,10 +51,10 @@ tree_sitter_get_range(TSNode node)
 }
 
 
-
 #include "4coder_ts_index.cpp"
 #include "4coder_ts_commands.cpp"
 #include "4coder_ts_layout.cpp"
+#include "4coder_ts_indent.cpp"
 
 BUFFER_EDIT_RANGE_SIG(tree_sitter_buffer_edit_range){
 	// buffer_id, new_range, original_size
@@ -322,94 +322,89 @@ tree_sitter_tick(Application_Links *app, Frame_Info frame_info){
 
 
 
-function b32
+function void
 tree_sitter_draw_text_highlight_colors(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer_id, Range_i64 visible_range)
 {
 	Scratch_Block scratch(app);
 	paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
 	
-	b32 result = false;
 	Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
 	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
-	if (ts_data->tree)
+	if (!ts_data->language || !ts_data->tree) return;
+	
+	TS_Language *language = ts_data->language;
+	TSQueryCursor *highlight_cursor = ts_query_cursor_new();
+	TSNode root = ts_tree_root_node(ts_data->tree);
+	TSNode visible_nodes = ts_node_descendant_for_byte_range(root, (u32)visible_range.start, (u32)visible_range.end);
+	
+	ts_query_cursor_set_byte_range(highlight_cursor, (u32)visible_range.start, (u32)visible_range.end);
+	ts_query_cursor_exec(highlight_cursor, language->highlight_query, visible_nodes);
+	TSQueryMatch match = {};
+	u32 capture_index = 0;
+	while (ts_query_cursor_next_capture(highlight_cursor, &match, &capture_index))
 	{
-		result = true;
-		TS_Language *language = ts_data->language;
-		TSQueryCursor *highlight_cursor = ts_query_cursor_new();
-		TSNode root = ts_tree_root_node(ts_data->tree);
-		TSNode visible_nodes = ts_node_descendant_for_byte_range(root, (u32)visible_range.start, (u32)visible_range.end);
+		const TSQueryCapture *capture = match.captures + capture_index;
 		
-		ts_query_cursor_set_byte_range(highlight_cursor, (u32)visible_range.start, (u32)visible_range.end);
-		ts_query_cursor_exec(highlight_cursor, language->highlight_query, visible_nodes);
-		TSQueryMatch match = {};
-		u32 capture_index = 0;
-		while (ts_query_cursor_next_capture(highlight_cursor, &match, &capture_index))
-		{
-			const TSQueryCapture *capture = match.captures + capture_index;
-			
-			Range_i64 node_range = tree_sitter_get_range(capture->node);
-			if (node_range.start >= visible_range.end) break;
-			u32 capture_name_len = 0;
-			const char *capture_name_str = ts_query_capture_name_for_id(language->highlight_query, capture->index, &capture_name_len);
-			String_Const_u8 capture_name = SCu8((u8*)capture_name_str, capture_name_len);
-			Managed_ID color_id = managed_id_get(app, SCu8("colors"), capture_name);
-			
-			if (color_id) {
-				paint_text_color_fcolor(app, text_layout_id, node_range, fcolor_id(color_id));
-			}
+		Range_i64 node_range = tree_sitter_get_range(capture->node);
+		if (node_range.start >= visible_range.end) break;
+		u32 capture_name_len = 0;
+		const char *capture_name_str = ts_query_capture_name_for_id(language->highlight_query, capture->index, &capture_name_len);
+		String_Const_u8 capture_name = SCu8((u8*)capture_name_str, capture_name_len);
+		Managed_ID color_id = managed_id_get(app, SCu8("colors"), capture_name);
+		
+		if (color_id) {
+			paint_text_color_fcolor(app, text_layout_id, node_range, fcolor_id(color_id));
 		}
-		ts_query_cursor_delete(highlight_cursor);
+	}
+	ts_query_cursor_delete(highlight_cursor);
+	
+	TSTreeCursor tree_cursor = ts_tree_cursor_new(visible_nodes);
+	ts_tree_cursor_goto_first_child_for_byte(&tree_cursor, (u32)visible_range.start);
+	b32 ok = true;
+	for (;ok;)
+	{
+		Temp_Memory_Block temp(scratch);
+		TSNode node = ts_tree_cursor_current_node(&tree_cursor);
+		Range_i64 node_range = tree_sitter_get_range(node);
+		TSSymbol symbol = ts_node_symbol(node);
+		const char *type_name = ts_language_symbol_name(ts_node_language(node), symbol);
+		if (node_range.start >= visible_range.end) break;
 		
-		TSTreeCursor tree_cursor = ts_tree_cursor_new(visible_nodes);
-		ts_tree_cursor_goto_first_child_for_byte(&tree_cursor, (u32)visible_range.start);
-		b32 ok = true;
-		for (;ok;)
+		String_Const_u8 lexeme = push_buffer_range(app, scratch, buffer_id, node_range);
+		TS_Index_Note *note = ts_code_index_note_from_string(language, lexeme);
+		if (note != 0)
 		{
-			Temp_Memory_Block temp(scratch);
-			TSNode node = ts_tree_cursor_current_node(&tree_cursor);
-			Range_i64 node_range = tree_sitter_get_range(node);
-			TSSymbol symbol = ts_node_symbol(node);
-			const char *type_name = ts_language_symbol_name(ts_node_language(node), symbol);
-			if (node_range.start >= visible_range.end) break;
-			
-			String_Const_u8 lexeme = push_buffer_range(app, scratch, buffer_id, node_range);
-			TS_Index_Note *note = ts_code_index_note_from_string(lexeme);
-			if (note != 0)
+			Managed_ID color_id = ts_code_index_color_from_note(app, language, note);
+			if (color_id)
+				paint_text_color_fcolor(app, text_layout_id, node_range, fcolor_id(color_id));
+		}
+		
+		if (ts_tree_cursor_goto_first_child(&tree_cursor))
+		{
+			continue;
+		}
+		
+		if (ts_tree_cursor_goto_next_sibling(&tree_cursor))
+		{
+			continue;
+		}
+		
+		// NOTE(fakhri): go up the tree until we find a valid next sibling or we reach the root
+		for (;ok;) {
+			if (!ts_tree_cursor_goto_parent(&tree_cursor))
 			{
-				Managed_ID color_id = ts_code_index_color_from_note(app, language, note);
-				if (color_id)
-					paint_text_color_fcolor(app, text_layout_id, node_range, fcolor_id(color_id));
+				// NOTE(fakhri): reached the root
+				ok = false;
+				break;
 			}
-			
-			if (ts_tree_cursor_goto_first_child(&tree_cursor))
-			{
-				continue;
-			}
-			
 			if (ts_tree_cursor_goto_next_sibling(&tree_cursor))
 			{
-				continue;
-			}
-			
-			// NOTE(fakhri): go up the tree until we find a valid next sibling or we reach the root
-			for (;ok;) {
-				if (!ts_tree_cursor_goto_parent(&tree_cursor))
-				{
-					// NOTE(fakhri): reached the root
-					ok = false;
-					break;
-				}
-				if (ts_tree_cursor_goto_next_sibling(&tree_cursor))
-				{
-					break;
-				}
+				break;
 			}
 		}
-		ts_tree_cursor_delete(&tree_cursor);
 	}
+	ts_tree_cursor_delete(&tree_cursor);
 	
-	
-	return result;
 }
 
 function void
@@ -640,6 +635,31 @@ BUFFER_HOOK_SIG(ts_end_buffer){
 	return(0);
 }
 
+function void
+ts_setup_essential_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
+	MappingScope();
+	SelectMapping(mapping);
+	
+	SelectMap(global_id);
+	BindCore(default_startup, CoreCode_Startup);
+	BindCore(default_try_exit, CoreCode_TryExit);
+	BindCore(clipboard_record_clip, CoreCode_NewClipboardContents);
+	BindMouseWheel(mouse_wheel_scroll);
+	BindMouseWheel(mouse_wheel_change_face_size, KeyCode_Control);
+	
+	SelectMap(file_id);
+	ParentMap(global_id);
+	BindTextInput(ts_write_text_and_auto_indent);
+	BindMouse(click_set_cursor_and_mark, MouseCode_Left);
+	BindMouseRelease(click_set_cursor, MouseCode_Left);
+	BindCore(click_set_cursor_and_mark, CoreCode_ClickActivateView);
+	BindMouseMove(click_set_cursor_if_lbutton);
+	
+	SelectMap(code_id);
+	ParentMap(file_id);
+	BindTextInput(ts_write_text_and_auto_indent);
+}
+
 void
 custom_layer_init(Application_Links *app){
 	Thread_Context *tctx = get_thread_context(app);
@@ -668,8 +688,7 @@ custom_layer_init(Application_Links *app){
 #else
 	setup_default_mapping(&framework_mapping, global_map_id, file_map_id, code_map_id);
 #endif
-	setup_essential_mapping(&framework_mapping, global_map_id, file_map_id, code_map_id);
-	
+	ts_setup_essential_mapping(&framework_mapping, global_map_id, file_map_id, code_map_id);
 	
 	// NOTE(fakhri): create ts tree buffer
 	{

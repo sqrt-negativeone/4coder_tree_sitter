@@ -49,8 +49,13 @@ CUSTOM_DOC("Goes to the definition of the identifier under the cursor in the sam
 	Scratch_Block scratch(app);
 	String_Const_u8 string = ts_push_word_under_active_cursor(app, scratch, view, buffer);
 	
-	TS_Index_Note *note = ts_code_index_note_from_string(string);
-	ts_goto_definition(app, note, 0);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data->language)
+	{
+		TS_Index_Note *note = ts_code_index_note_from_string(ts_data->language, string);
+		ts_goto_definition(app, note, 0);
+	}
 }
 
 CUSTOM_COMMAND_SIG(ts_goto_definition_same_panel)
@@ -61,8 +66,13 @@ CUSTOM_DOC("Goes to the definition of the identifier under the cursor in the sam
 	Scratch_Block scratch(app);
 	String_Const_u8 string = ts_push_word_under_active_cursor(app, scratch, view, buffer);
 	
-	TS_Index_Note *note = ts_code_index_note_from_string(string);
-	ts_goto_definition(app, note, 1);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data->language)
+	{
+		TS_Index_Note *note = ts_code_index_note_from_string(ts_data->language, string);
+		ts_goto_definition(app, note, 1);
+	}
 }
 
 internal void
