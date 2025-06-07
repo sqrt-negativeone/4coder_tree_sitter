@@ -62,6 +62,7 @@ ts_init_index_map(Application_Links *app, TS_Index_Map *map, Base_Allocator *bas
 	for (u32 i = 0; i < name_to_kind_entries_count; i += 1)
 	{
 		String_Note_Kind_Pair entry = name_to_kind_entries[i];
+		if (!entry.text.size) continue;
 		table_insert(&map->name_to_note_kind_table,  entry.text, entry.note_kind);
 	}
 	
@@ -69,6 +70,7 @@ ts_init_index_map(Application_Links *app, TS_Index_Map *map, Base_Allocator *bas
 	for (u32 i = 0; i < note_kind_to_color_name_count; i += 1)
 	{
 		String_Note_Kind_Pair entry = note_kind_to_color_name[i];
+		if (!entry.text.size) continue;
 		table_insert(&map->note_kind_to_color_id_table, entry.note_kind,  managed_id_get(app, SCu8("colors"), entry.text));
 	}
 }

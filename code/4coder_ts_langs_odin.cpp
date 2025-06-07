@@ -33,9 +33,11 @@ ts_get_lister_note_kind_text_odin(TS_Index_Note *note, Arena *arena)
 }
 
 global String_Note_Kind_Pair odin_name_to_kind_entries[] = {
+	{}
 };
 
 global String_Note_Kind_Pair odin_note_kind_to_color_name_entries[] = {
+	{}
 };
 
 global String_Const_u8 odin_extensions[] = {
@@ -43,15 +45,15 @@ global String_Const_u8 odin_extensions[] = {
 };
 
 global Language_Description odin_language_description = {
-	.name = str8_lit("odin"),
-	.name_to_kind_entries_count    = ArrayCount(odin_name_to_kind_entries),
-	.name_to_kind_entries          = odin_name_to_kind_entries,
-	.note_kind_to_color_name_count = ArrayCount(odin_note_kind_to_color_name_entries),
-	.note_kind_to_color_name       = odin_note_kind_to_color_name_entries,
-	.extensions_count              = ArrayCount(odin_extensions),
-	.extensions                    = odin_extensions,
-	.language = {
-		.language                  = tree_sitter_odin(),
-		.get_lister_note_kind_text = ts_get_lister_note_kind_text_odin,
+	/*.name                          =*/ str8_lit("odin"),
+	/*.name_to_kind_entries_count    =*/ ArrayCount(odin_name_to_kind_entries),
+	/*.name_to_kind_entries          =*/ odin_name_to_kind_entries,
+	/*.note_kind_to_color_name_count =*/ ArrayCount(odin_note_kind_to_color_name_entries),
+	/*.note_kind_to_color_name       =*/ odin_note_kind_to_color_name_entries,
+	/*.extensions_count              =*/ ArrayCount(odin_extensions),
+	/*.extensions                    =*/ odin_extensions,
+	/*.language =*/ {
+		/*.language                  =*/ tree_sitter_odin(),
+		/*.get_lister_note_kind_text =*/ ts_get_lister_note_kind_text_odin,
 	},
 };

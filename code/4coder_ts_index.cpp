@@ -82,13 +82,14 @@ typedef String_Const_u8 TS_Get_Lister_Note_Kind_Text_Proc(TS_Index_Note *note, A
 struct TS_Language
 {
 	const TSLanguage *language;
+	TS_Get_Lister_Note_Kind_Text_Proc *get_lister_note_kind_text;
+	
 	TSQuery *highlight_query;
 	TSQuery *index_query;
 	TSQuery *scope_query;
 	
 	TS_Index_Map index_map;
 	
-	TS_Get_Lister_Note_Kind_Text_Proc *get_lister_note_kind_text;
 	
 	// TODO(fmouad): this table probably should be private per language?
 	TS_Index_Note_List name_to_note_table[4096];
@@ -132,17 +133,17 @@ struct TS_Index_Context
 global TS_Index_Context g_index_ctx;
 
 global String_Note_Kind_Pair global_name_to_kind_entries[] = {
-	{.text = str8_lit("function_def"),      .note_kind = Index_Note_Function},
-	{.text = str8_lit("typedef.prod_type"), .note_kind = Index_Note_Product_Type},
-	{.text = str8_lit("typedef.sum_type"),  .note_kind = Index_Note_Sum_Type},
-	{.text = str8_lit("constant"),          .note_kind = Index_Note_Constant},
+	{ str8_lit("function_def"),       Index_Note_Function},
+	{ str8_lit("typedef.prod_type"),  Index_Note_Product_Type},
+	{ str8_lit("typedef.sum_type"),   Index_Note_Sum_Type},
+	{ str8_lit("constant"),           Index_Note_Constant},
 };
 
 global String_Note_Kind_Pair global_note_kind_to_color_name[] = {
-	{.text = str8_lit("defcolor_function"),  .note_kind = Index_Note_Function},
-	{.text = str8_lit("ts_color_prod_type"), .note_kind = Index_Note_Product_Type},
-	{.text = str8_lit("ts_color_sum_type"),  .note_kind = Index_Note_Sum_Type},
-	{.text = str8_lit("ts_color_constant"),  .note_kind = Index_Note_Constant},
+	{ str8_lit("defcolor_function"),   Index_Note_Function},
+	{ str8_lit("ts_color_prod_type"),  Index_Note_Product_Type},
+	{ str8_lit("ts_color_sum_type"),   Index_Note_Sum_Type},
+	{ str8_lit("ts_color_constant"),   Index_Note_Constant},
 };
 
 
@@ -186,8 +187,6 @@ ts_begin_buffer(Application_Links *app, Buffer_ID buffer_id, Managed_Scope scope
 		}
 		else
 		{
-			u32 lang_abi_ver = ts_language_abi_version(ts_language->language);
-			
 			InvalidPath;
 		}
 		
@@ -231,7 +230,6 @@ function TS_Index_Note *
 ts_code_index_note_from_string(TS_Language *ts_language, String_Const_u8 string)
 {
 	TS_Index_Note *result = 0;
-	TS_Index_Context *ts_index = &g_index_ctx;
 	
 	u64 hash = table_hash_u8(string.str, string.size);
 	u64 slot_index = hash % ArrayCount(ts_language->name_to_note_table);

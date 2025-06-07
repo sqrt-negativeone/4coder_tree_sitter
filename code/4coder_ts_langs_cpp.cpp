@@ -50,13 +50,13 @@ ts_get_lister_note_kind_text_cpp(TS_Index_Note *note, Arena *arena)
 }
 
 global String_Note_Kind_Pair cpp_name_to_kind_entries[] = {
-	{.text = str8_lit("namespace_def"),    .note_kind = Index_Note_CPP_Namespace},
-	{.text = str8_lit("macro_def"),        .note_kind = Index_Note_CPP_Macro},
+	{/*.text =*/ str8_lit("namespace_def"),    /*.note_kind =*/ Index_Note_CPP_Namespace},
+	{/*.text =*/ str8_lit("macro_def"),        /*.note_kind =*/ Index_Note_CPP_Macro},
 };
 
 global String_Note_Kind_Pair cpp_note_kind_to_color_name_entries[] = {
-	{.text = str8_lit("ts_color_macro"),     .note_kind = Index_Note_CPP_Macro},
-	{.text = str8_lit("ts_color_namespace"), .note_kind = Index_Note_CPP_Namespace},
+	{/*.text =*/ str8_lit("ts_color_macro"),     /*.note_kind =*/ Index_Note_CPP_Macro},
+	{/*.text =*/ str8_lit("ts_color_namespace"), /*.note_kind =*/ Index_Note_CPP_Namespace},
 };
 
 global String_Const_u8 cpp_extensions[] = {
@@ -67,15 +67,15 @@ global String_Const_u8 cpp_extensions[] = {
 };
 
 global Language_Description cpp_language_description = {
-	.name = str8_lit("cpp"),
-	.name_to_kind_entries_count    = ArrayCount(cpp_name_to_kind_entries),
-	.name_to_kind_entries          = cpp_name_to_kind_entries,
-	.note_kind_to_color_name_count = ArrayCount(cpp_note_kind_to_color_name_entries),
-	.note_kind_to_color_name       = cpp_note_kind_to_color_name_entries,
-	.extensions_count              = ArrayCount(cpp_extensions),
-	.extensions                    = cpp_extensions,
-	.language = {
-		.language                  = tree_sitter_cpp(),
-		.get_lister_note_kind_text = ts_get_lister_note_kind_text_cpp,
+	/*.name =*/ str8_lit("cpp"),
+	/*.name_to_kind_entries_count    =*/ ArrayCount(cpp_name_to_kind_entries),
+	/*.name_to_kind_entries          =*/ cpp_name_to_kind_entries,
+	/*.note_kind_to_color_name_count =*/ ArrayCount(cpp_note_kind_to_color_name_entries),
+	/*.note_kind_to_color_name       =*/ cpp_note_kind_to_color_name_entries,
+	/*.extensions_count              =*/ ArrayCount(cpp_extensions),
+	/*.extensions                    =*/ cpp_extensions,
+	/*.language =*/ {
+		/*.language                  =*/ tree_sitter_cpp(),
+		/*.get_lister_note_kind_text =*/ ts_get_lister_note_kind_text_cpp,
 	},
 };

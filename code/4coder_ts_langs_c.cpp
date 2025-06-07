@@ -41,11 +41,11 @@ ts_get_lister_note_kind_text_c(TS_Index_Note *note, Arena *arena)
 }
 
 global String_Note_Kind_Pair c_name_to_kind_entries[] = {
-	{.text = str8_lit("macro_def"),        .note_kind = Index_Note_C_Macro},
+	{ str8_lit("macro_def"),         Index_Note_C_Macro},
 };
 
 global String_Note_Kind_Pair c_note_kind_to_color_name_entries[] = {
-	{.text = str8_lit("ts_color_macro"),     .note_kind = Index_Note_C_Macro},
+	{ str8_lit("ts_color_macro"),      Index_Note_C_Macro},
 };
 
 global String_Const_u8 c_extensions[] = {
@@ -53,15 +53,15 @@ global String_Const_u8 c_extensions[] = {
 };
 
 global Language_Description c_language_description = {
-	.name = str8_lit("c"),
-	.name_to_kind_entries_count    = ArrayCount(c_name_to_kind_entries),
-	.name_to_kind_entries          = c_name_to_kind_entries,
-	.note_kind_to_color_name_count = ArrayCount(c_note_kind_to_color_name_entries),
-	.note_kind_to_color_name       = c_note_kind_to_color_name_entries,
-	.extensions_count              = ArrayCount(c_extensions),
-	.extensions                    = c_extensions,
-	.language = {
-		.language                  = tree_sitter_c(),
-		.get_lister_note_kind_text = ts_get_lister_note_kind_text_c,
+	/*.name = */ str8_lit("c"),
+	/*.name_to_kind_entries_count    =*/ ArrayCount(c_name_to_kind_entries),
+	/*.name_to_kind_entries          =*/ c_name_to_kind_entries,
+	/*.note_kind_to_color_name_count =*/ ArrayCount(c_note_kind_to_color_name_entries),
+	/*.note_kind_to_color_name       =*/ c_note_kind_to_color_name_entries,
+	/*.extensions_count              =*/ ArrayCount(c_extensions),
+	/*.extensions                    =*/ c_extensions,
+	/*.language = */ {
+		/*.language                  =*/ tree_sitter_c(),
+		/*.get_lister_note_kind_text =*/ ts_get_lister_note_kind_text_c,
 	},
 };
