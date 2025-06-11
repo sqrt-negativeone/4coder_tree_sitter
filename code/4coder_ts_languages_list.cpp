@@ -45,7 +45,7 @@ ts_init_ts_language(Application_Links *app, String_Const_u8 name, TS_Language *l
 	
 	String_Const_u8 exe_path = string_remove_last_folder(system_get_path(scratch, SystemPath_Binary));
 	
-	String_Const_u8 ts_languages_path_root = push_stringf(scratch, "%.*slangs/%s", string_expand(exe_path), name);
+	String_Const_u8 ts_languages_path_root = push_stringf(scratch, "%.*slangs/%.*s", string_expand(exe_path), string_expand(name));
 	
 	language->highlight_query = ts_create_query(app, language->language, ts_languages_path_root, str8_lit("highlight.scm"));
 	language->index_query     = ts_create_query(app, language->language, ts_languages_path_root, str8_lit("index.scm"));

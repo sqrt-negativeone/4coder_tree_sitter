@@ -67,7 +67,7 @@ global String_Const_u8 cpp_extensions[] = {
 };
 
 global Language_Description cpp_language_description = {
-	/*.name =*/ str8_lit("cpp"),
+	/*.name                          =*/ str8_lit("cpp"),
 	/*.name_to_kind_entries_count    =*/ ArrayCount(cpp_name_to_kind_entries),
 	/*.name_to_kind_entries          =*/ cpp_name_to_kind_entries,
 	/*.note_kind_to_color_name_count =*/ ArrayCount(cpp_note_kind_to_color_name_entries),

@@ -23,8 +23,10 @@ for /d %%D in ("%langs_root_dir%\*") do (
 	echo Building parser for !dir_name!:
 	
 	for %%F in (%%D\*.*) do (
-		set "outname=tree-sitter-!dir_name!-%%~nxF.obj"
-    call cl -c /O2 %include_paths% /nologo /Zi %%F /Fo!outname!
+		if not "%%~xF"==".scm" (
+			set "outname=tree-sitter-!dir_name!-%%~nxF.obj"
+			call cl -c /O2 %include_paths% /nologo /Zi %%F /Fo!outname!
+		)
 	)
 )
 
