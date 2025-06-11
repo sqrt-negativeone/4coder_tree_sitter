@@ -116,6 +116,7 @@ struct TS_Data
 	TSTree   *tree;
 	TS_Index_File *file;
 	TS_Language *language;
+	TSNode current_surrounding_node;
 };
 
 

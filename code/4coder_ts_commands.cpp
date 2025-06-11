@@ -256,3 +256,314 @@ CUSTOM_DOC("output tree sitter AST to *ts_tree* buffer")
 		ts_write_tree_to_buffer(app, scratch, out_buffer, node);
 	}
 }
+
+CUSTOM_COMMAND_SIG(ts_invalidate_surrounding_node)
+CUSTOM_DOC("Invalidate the active surrounding TS node")
+{
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		block_zero_struct(&ts_data->current_surrounding_node);
+	}
+}
+
+internal void
+ts_select_node(Application_Links *app, View_ID view, TSNode node)
+{
+	Range_i64 node_range = tree_sitter_get_range(node);
+	view_set_cursor_and_preferred_x(app, view, seek_pos(node_range.start));
+	view_set_mark(app, view, seek_pos(node_range.end));
+}
+
+CUSTOM_COMMAND_SIG(ts_select_parent_syntax_node)
+CUSTOM_DOC("Selects one parent element in TS AST")
+{
+	Scratch_Block scratch(app);
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		i64 pos = view_get_cursor_pos(app, view);
+		
+		if (ts_node_is_null(ts_data->current_surrounding_node) || 
+				(!range_contains(tree_sitter_get_range(ts_data->current_surrounding_node), pos)))
+		{
+			TSNode root = ts_tree_root_node(ts_data->tree);
+			ts_data->current_surrounding_node = ts_node_descendant_for_byte_range(root, (i32)pos, (i32)pos);
+		}
+		else
+		{
+			TSNode parent = ts_node_parent(ts_data->current_surrounding_node);
+			if (!ts_node_is_null(parent))
+			{
+				ts_data->current_surrounding_node = parent;
+			}
+		}
+		ts_select_node(app, view, ts_data->current_surrounding_node);
+	}
+}
+
+
+CUSTOM_COMMAND_SIG(ts_select_first_child_syntax_node)
+CUSTOM_DOC("Selects first child element in TS AST")
+{
+	Scratch_Block scratch(app);
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		i64 pos = view_get_cursor_pos(app, view);
+		
+		if (ts_node_is_null(ts_data->current_surrounding_node) || 
+				(!range_contains(tree_sitter_get_range(ts_data->current_surrounding_node), pos)))
+		{
+			TSNode root = ts_tree_root_node(ts_data->tree);
+			ts_data->current_surrounding_node = ts_node_descendant_for_byte_range(root, (i32)pos, (i32)pos);
+		}
+		else
+		{
+			TSNode child = ts_node_child(ts_data->current_surrounding_node, 0);
+			if (!ts_node_is_null(child))
+			{
+				ts_data->current_surrounding_node = child;
+			}
+		}
+		ts_select_node(app, view, ts_data->current_surrounding_node);
+	}
+}
+
+
+CUSTOM_COMMAND_SIG(ts_select_next_syntax_node)
+CUSTOM_DOC("Selects one next sibling in TS AST")
+{
+	Scratch_Block scratch(app);
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		i64 pos = view_get_cursor_pos(app, view);
+		
+		if (ts_node_is_null(ts_data->current_surrounding_node) || 
+				(!range_contains(tree_sitter_get_range(ts_data->current_surrounding_node), pos)))
+		{
+			TSNode root = ts_tree_root_node(ts_data->tree);
+			ts_data->current_surrounding_node = ts_node_descendant_for_byte_range(root, (i32)pos, (i32)pos);
+		}
+		else
+		{
+			TSNode sib = ts_node_next_sibling(ts_data->current_surrounding_node);
+			if (!ts_node_is_null(sib))
+			{
+				ts_data->current_surrounding_node = sib;
+			}
+		}
+		ts_select_node(app, view, ts_data->current_surrounding_node);
+	}
+}
+
+CUSTOM_COMMAND_SIG(ts_select_prev_syntax_node)
+CUSTOM_DOC("Selects prev sibling in TS AST")
+{
+	Scratch_Block scratch(app);
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		i64 pos = view_get_cursor_pos(app, view);
+		
+		if (ts_node_is_null(ts_data->current_surrounding_node) || 
+				(!range_contains(tree_sitter_get_range(ts_data->current_surrounding_node), pos)))
+		{
+			TSNode root = ts_tree_root_node(ts_data->tree);
+			ts_data->current_surrounding_node = ts_node_descendant_for_byte_range(root, (i32)pos, (i32)pos);
+		}
+		else
+		{
+			TSNode sib = ts_node_prev_sibling(ts_data->current_surrounding_node);
+			if (!ts_node_is_null(sib))
+			{
+				ts_data->current_surrounding_node = sib;
+			}
+		}
+		
+		ts_select_node(app, view, ts_data->current_surrounding_node);
+	}
+}
+
+
+internal b32
+ts_is_node_function_type(String_Const_u8 type)
+{
+	local_persist String_Const_u8 function_types[] = {
+		str8_lit("function_definition"),
+		str8_lit("method_declaration"),
+	};
+	
+	b32 result = false;
+	for (u32 i = 0; i < ArrayCount(function_types); i += 1)
+	{
+		if (string_match(function_types[i], type))
+		{
+			result = true;
+			break;
+		}
+	}
+	return result;
+}
+
+internal TSNode
+ts_get_first_surrounding_function(TSTree *tree, i64 pos)
+{
+	TSNode result = {};
+	
+	TSNode root = ts_tree_root_node(tree);
+	TSNode surrounding_node = ts_node_descendant_for_byte_range(root, (i32)pos, (i32)pos);
+	b32 valid = false;
+	for (;;)
+	{
+		String_Const_u8 node_type = SCu8((u8*)ts_node_type(surrounding_node));
+		if (ts_is_node_function_type(node_type))
+		{
+			valid = true;
+			break;
+		}
+		
+		TSNode node = ts_node_parent(surrounding_node);
+		if (ts_node_is_null(node))
+		{
+			break;
+		}
+		surrounding_node = node;
+	}
+	
+	if (valid)
+		result = surrounding_node;
+	return result;
+}
+
+CUSTOM_COMMAND_SIG(ts_select_surrounding_function)
+CUSTOM_DOC("Selects surrounding function")
+{
+	Scratch_Block scratch(app);
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		i64 pos = view_get_cursor_pos(app, view);
+		TSNode surrounding_node = ts_get_first_surrounding_function(ts_data->tree, pos);
+		if (!ts_node_is_null(surrounding_node))
+		{
+			ts_data->current_surrounding_node = surrounding_node;
+			ts_select_node(app, view, surrounding_node);
+		}
+	}
+}
+
+CUSTOM_COMMAND_SIG(ts_select_next_function)
+CUSTOM_DOC("Selects next function")
+{
+	Scratch_Block scratch(app);
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		i64 pos = view_get_cursor_pos(app, view);
+		TSNode parent_function_node = ts_get_first_surrounding_function(ts_data->tree, pos);
+		if (!ts_node_is_null(parent_function_node))
+		{
+			TSNode next_function_node = parent_function_node; 
+			b32 valid = false;
+			for (;;)
+			{
+				TSNode node = ts_node_next_sibling(next_function_node);
+				if (ts_node_is_null(node))
+				{
+					break;
+				}
+				
+				next_function_node = node;
+				String_Const_u8 node_type = SCu8((u8*)ts_node_type(next_function_node));
+				if (ts_is_node_function_type(node_type))
+				{
+					valid = true;
+					break;
+				}
+				
+			}
+			
+			if (valid)
+			{
+				ts_data->current_surrounding_node = next_function_node;
+				ts_select_node(app, view, next_function_node);
+			}
+		}
+	}
+}
+
+
+CUSTOM_COMMAND_SIG(ts_select_prev_function)
+CUSTOM_DOC("Selects previous function")
+{
+	Scratch_Block scratch(app);
+	
+	View_ID view = get_active_view(app, Access_Always);
+	Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+	Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
+	if (ts_data)
+	{
+		i64 pos = view_get_cursor_pos(app, view);
+		TSNode parent_function_node = ts_get_first_surrounding_function(ts_data->tree, pos);
+		if (!ts_node_is_null(parent_function_node))
+		{
+			TSNode prev_function_node = parent_function_node; 
+			b32 valid = false;
+			for (;;)
+			{
+				TSNode node = ts_node_prev_sibling(prev_function_node);
+				if (ts_node_is_null(node))
+				{
+					break;
+				}
+				
+				prev_function_node = node;
+				String_Const_u8 node_type = SCu8((u8*)ts_node_type(prev_function_node));
+				if (ts_is_node_function_type(node_type))
+				{
+					valid = true;
+					break;
+				}
+				
+			}
+			
+			if (valid)
+			{
+				ts_data->current_surrounding_node = prev_function_node;
+				ts_select_node(app, view, prev_function_node);
+			}
+		}
+	}
+}
+
+
