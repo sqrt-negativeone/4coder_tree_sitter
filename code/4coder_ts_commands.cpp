@@ -477,6 +477,43 @@ CUSTOM_DOC("Selects surrounding function")
 	}
 }
 
+internal b32
+ts_advance_next_node(TSTreeCursor *tree_cursor)
+{
+	b32 result = false;
+	
+	if (ts_tree_cursor_goto_next_sibling(tree_cursor))
+	{
+		TSNode node = ts_tree_cursor_current_node(tree_cursor);
+		ts_tree_cursor_goto_first_child_for_byte(tree_cursor, ts_node_start_byte(node));
+		result = true;
+	}
+	else if (ts_tree_cursor_goto_parent(tree_cursor))
+	{
+		result = true;
+	}
+	return result;
+}
+
+internal b32
+ts_advance_prev_node(TSTreeCursor *tree_cursor)
+{
+	b32 result = false;
+	
+	if (ts_tree_cursor_goto_previous_sibling(tree_cursor))
+	{
+		TSNode node = ts_tree_cursor_current_node(tree_cursor);
+		ts_tree_cursor_goto_first_child_for_byte(tree_cursor, ts_node_end_byte(node) - 1);
+		result = true;
+	}
+	else if (ts_tree_cursor_goto_parent(tree_cursor))
+	{
+		result = true;
+	}
+	return result;
+}
+
+
 CUSTOM_COMMAND_SIG(ts_select_next_function)
 CUSTOM_DOC("Selects next function")
 {
@@ -488,39 +525,34 @@ CUSTOM_DOC("Selects next function")
 	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
 	if (ts_data)
 	{
+		TSNode next_function_node = {}; 
+		
+		TSNode root = ts_tree_root_node(ts_data->tree);
 		i64 pos = view_get_cursor_pos(app, view);
-		TSNode parent_function_node = ts_get_first_surrounding_function(ts_data->tree, pos);
-		if (!ts_node_is_null(parent_function_node))
+		
+		TSTreeCursor tree_cursor = ts_tree_cursor_new(root);
+		for (;ts_tree_cursor_goto_first_child_for_byte(&tree_cursor, (u32)pos) >= 0;);
+		
+		for (;ts_advance_next_node(&tree_cursor);)
 		{
-			TSNode next_function_node = parent_function_node; 
-			b32 valid = false;
-			for (;;)
-			{
-				TSNode node = ts_node_next_sibling(next_function_node);
-				if (ts_node_is_null(node))
-				{
-					break;
-				}
-				
-				next_function_node = node;
-				String_Const_u8 node_type = SCu8((u8*)ts_node_type(next_function_node));
-				if (ts_is_node_function_type(node_type))
-				{
-					valid = true;
-					break;
-				}
-				
-			}
+			TSNode node = ts_tree_cursor_current_node(&tree_cursor);
 			
-			if (valid)
+			String_Const_u8 node_type = SCu8((u8*)ts_node_type(node));
+			if (ts_is_node_function_type(node_type) && (!ts_node_eq(node, ts_data->current_surrounding_node)))
 			{
-				ts_data->current_surrounding_node = next_function_node;
-				ts_select_node(app, view, next_function_node);
+				next_function_node = node;
+				break;
 			}
+		}
+		ts_tree_cursor_delete(&tree_cursor);
+		
+		if (!ts_node_is_null(next_function_node))
+		{
+			ts_data->current_surrounding_node = next_function_node;
+			ts_select_node(app, view, next_function_node);
 		}
 	}
 }
-
 
 CUSTOM_COMMAND_SIG(ts_select_prev_function)
 CUSTOM_DOC("Selects previous function")
@@ -533,35 +565,31 @@ CUSTOM_DOC("Selects previous function")
 	TS_Data *ts_data = scope_attachment(app, scope, ts_data_id, TS_Data);
 	if (ts_data)
 	{
+		TSNode next_function_node = {}; 
+		
+		TSNode root = ts_tree_root_node(ts_data->tree);
 		i64 pos = view_get_cursor_pos(app, view);
-		TSNode parent_function_node = ts_get_first_surrounding_function(ts_data->tree, pos);
-		if (!ts_node_is_null(parent_function_node))
+		
+		TSTreeCursor tree_cursor = ts_tree_cursor_new(root);
+		for (;ts_tree_cursor_goto_first_child_for_byte(&tree_cursor, (u32)pos) >= 0;);
+		
+		for (;ts_advance_prev_node(&tree_cursor);)
 		{
-			TSNode prev_function_node = parent_function_node; 
-			b32 valid = false;
-			for (;;)
-			{
-				TSNode node = ts_node_prev_sibling(prev_function_node);
-				if (ts_node_is_null(node))
-				{
-					break;
-				}
-				
-				prev_function_node = node;
-				String_Const_u8 node_type = SCu8((u8*)ts_node_type(prev_function_node));
-				if (ts_is_node_function_type(node_type))
-				{
-					valid = true;
-					break;
-				}
-				
-			}
+			TSNode node = ts_tree_cursor_current_node(&tree_cursor);
 			
-			if (valid)
+			String_Const_u8 node_type = SCu8((u8*)ts_node_type(node));
+			if (ts_is_node_function_type(node_type) && (!ts_node_eq(node, ts_data->current_surrounding_node)))
 			{
-				ts_data->current_surrounding_node = prev_function_node;
-				ts_select_node(app, view, prev_function_node);
+				next_function_node = node;
+				break;
 			}
+		}
+		ts_tree_cursor_delete(&tree_cursor);
+		
+		if (!ts_node_is_null(next_function_node))
+		{
+			ts_data->current_surrounding_node = next_function_node;
+			ts_select_node(app, view, next_function_node);
 		}
 	}
 }
